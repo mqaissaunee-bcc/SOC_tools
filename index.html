@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security Cert × SOC Exercises — prompt builder and exercise library</title>
+<meta name="description" content="A prompt builder and a growing library of hands-on Security Operations Center exercises, each aligned to a specific certification objective and built to run inside the four-screen Simulated SOC.">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --surface: #ffffff;
+    --surface-2: #f6f8fb;
+    --ink: #182031;
+    --muted: #556072;
+    --border: #d5dce6;
+    --accent: #0e7c86;        /* SOC teal — the through-line */
+    --accent-ink: #085660;
+    --accent-soft: #e4f2f3;
+    --pci: #9a5b06;           /* Finance / PCI amber */
+    --pci-bg: #fdf2e0;
+    --phi: #0f6d68;           /* Healthcare / PHI */
+    --phi-bg: #e4f2f1;
+    --cj: #6d28d9;            /* Criminal-justice lens violet */
+    --cj-bg: #f2ecfd;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", "Cascadia Code", Menlo, Consolas, monospace;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(20,30,48,.06), 0 10px 30px rgba(20,30,48,.07);
+    --maxw: 66rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c111d;
+      --surface: #141b2b;
+      --surface-2: #0f1626;
+      --ink: #e7ecf4;
+      --muted: #9fabbe;
+      --border: #27324a;
+      --accent: #37c8b8;
+      --accent-ink: #7fe4d8;
+      --accent-soft: #102a2b;
+      --pci: #f2b544;
+      --pci-bg: #2a2010;
+      --phi: #4fd0c7;
+      --phi-bg: #10262a;
+      --cj: #a98cf6;
+      --cj-bg: #1e1830;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 34px rgba(0,0,0,.4);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    font-size: clamp(1rem, 0.96rem + 0.2vw, 1.06rem);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .skip-link {
+    position: absolute; left: -999px; top: 0;
+    background: var(--accent); color: #fff;
+    padding: .7rem 1rem; border-radius: 0 0 var(--radius) 0;
+    z-index: 100; font-weight: 600; text-decoration: none;
+  }
+  .skip-link:focus { left: 0; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 clamp(1rem, 4vw, 2.4rem); }
+
+  a { color: var(--accent-ink); }
+  a:focus-visible, .card-link:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 8px;
+  }
+
+  /* ---------- Masthead ---------- */
+  header.masthead {
+    background:
+      radial-gradient(120% 120% at 100% 0%, var(--accent-soft) 0%, transparent 55%),
+      linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .78rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    display: flex; align-items: center; gap: .55rem; flex-wrap: wrap;
+    margin: 2rem 0 .6rem;
+  }
+  .eyebrow .dot { width: .55rem; height: .55rem; border-radius: 50%; background: var(--accent); display: inline-block; }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: clamp(2rem, 1.3rem + 3.4vw, 3.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    margin: .1rem 0 .6rem;
+  }
+  h1 .x { color: var(--accent); font-style: italic; padding: 0 .1em; }
+  .lede {
+    color: var(--muted);
+    font-size: clamp(1.05rem, 1rem + 0.5vw, 1.25rem);
+    max-width: 44ch;
+    margin: 0 0 2rem;
+  }
+
+  /* ---------- Pipeline (signature) ---------- */
+  .pipeline {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.4rem;
+    margin: 0 0 2.4rem;
+    position: relative;
+  }
+  @media (min-width: 800px) {
+    .pipeline { grid-template-columns: repeat(3, 1fr); gap: 2.2rem; }
+  }
+  .stage {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.2rem 1.2rem;
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  .stage .step {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .1em;
+    color: var(--accent-ink);
+    text-transform: uppercase;
+  }
+  .stage h2 { font-family: var(--sans); font-size: 1.05rem; margin: .25rem 0 .35rem; font-weight: 700; }
+  .stage p { margin: 0; color: var(--muted); font-size: .92rem; }
+  /* connector arrows */
+  .stage:not(:last-child)::after {
+    content: "→";
+    font-family: var(--mono);
+    color: var(--accent);
+    font-size: 1.3rem;
+    position: absolute;
+    right: -1.55rem; top: 50%; transform: translateY(-50%);
+    line-height: 1;
+  }
+  @media (max-width: 799px) {
+    .stage:not(:last-child)::after {
+      content: "↓";
+      right: 50%; top: auto; bottom: -1.25rem; transform: translateX(50%);
+    }
+  }
+
+  /* ---------- Main sections ---------- */
+  main { padding: 2.4rem 0 1rem; }
+  .section { margin: 0 0 2.6rem; }
+  .section-head { margin-bottom: 1.1rem; }
+  .section-head .kicker {
+    font-family: var(--mono); font-size: .74rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .section-head h2 {
+    font-family: var(--serif); font-weight: 700;
+    font-size: clamp(1.4rem, 1.1rem + 1.4vw, 1.9rem);
+    margin: .2rem 0 .3rem; letter-spacing: -0.01em;
+  }
+  .section-head p { color: var(--muted); margin: 0; max-width: 58ch; }
+
+  /* ---------- Primary builder card ---------- */
+  .builder {
+    background: linear-gradient(150deg, var(--surface) 0%, var(--surface-2) 100%);
+    border: 1px solid var(--border);
+    border-left: 6px solid var(--accent);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: clamp(1.3rem, 3vw, 2rem);
+    display: grid; gap: 1.1rem;
+  }
+  @media (min-width: 760px) { .builder { grid-template-columns: 1fr auto; align-items: center; } }
+  .builder .tool-eyebrow {
+    font-family: var(--mono); font-size: .74rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--accent-ink);
+  }
+  .builder h2 { font-family: var(--serif); font-size: clamp(1.4rem, 1.1rem + 1.4vw, 1.9rem); margin: .3rem 0 .5rem; }
+  .builder p { margin: 0; color: var(--muted); max-width: 56ch; }
+  .cert-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .9rem; }
+  .cert-tag {
+    font-family: var(--mono); font-size: .75rem;
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: .28rem .6rem; color: var(--muted); background: var(--surface);
+    white-space: nowrap;
+  }
+  .cta {
+    display: inline-flex; align-items: center; gap: .5rem;
+    font-family: var(--sans); font-weight: 700; font-size: 1rem;
+    min-height: 48px; padding: .75rem 1.3rem;
+    background: var(--accent); color: #fff; border-radius: 12px;
+    text-decoration: none; white-space: nowrap; justify-self: start;
+    border: 1px solid var(--accent);
+    transition: filter .18s ease, transform .18s ease;
+  }
+  .cta:hover { filter: brightness(1.07); transform: translateY(-1px); }
+  .cta .arrow { font-family: var(--mono); }
+
+  /* ---------- Example exhibits ---------- */
+  .exhibits { display: grid; gap: 1.4rem; }
+  @media (min-width: 760px) { .exhibits { grid-template-columns: 1fr 1fr; } }
+  .exhibit {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.3rem 1.35rem 1.4rem;
+    display: flex; flex-direction: column;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .exhibit:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .exhibit .badge {
+    align-self: flex-start;
+    font-family: var(--mono); font-size: .72rem; font-weight: 600;
+    letter-spacing: .04em; text-transform: uppercase;
+    padding: .28rem .55rem; border-radius: 7px; margin-bottom: .7rem;
+  }
+  .exhibit.pci .badge { color: var(--pci); background: var(--pci-bg); border: 1px solid var(--pci); }
+  .exhibit.phi .badge { color: var(--phi); background: var(--phi-bg); border: 1px solid var(--phi); }
+  .exhibit h3 {
+    font-family: var(--serif); font-size: 1.35rem; line-height: 1.2;
+    margin: 0 0 .5rem; letter-spacing: -0.01em;
+  }
+  .exhibit h3 a { color: inherit; text-decoration: none; }
+  .exhibit h3 a::after { content: ""; position: absolute; inset: 0; } /* whole card clickable */
+  .exhibit .blurb { color: var(--muted); font-size: .95rem; margin: 0 0 1rem; }
+  .spec {
+    font-family: var(--mono); font-size: .82rem;
+    display: grid; grid-template-columns: max-content 1fr; gap: .3rem .9rem;
+    margin: 0 0 1rem; padding: .8rem .9rem;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .spec dt { color: var(--muted); }
+  .spec dd { margin: 0; color: var(--ink); }
+  .exhibit .open {
+    margin-top: auto;
+    font-family: var(--sans); font-weight: 700; font-size: .92rem;
+    color: var(--accent-ink); display: inline-flex; align-items: center; gap: .4rem;
+    position: relative; z-index: 1;
+  }
+  .exhibit .open .arrow { font-family: var(--mono); transition: transform .18s ease; }
+  .exhibit:hover .open .arrow { transform: translateX(3px); }
+
+  /* ---------- About / repo ---------- */
+  .about-grid { display: grid; gap: 1.4rem; }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.3rem 1.4rem;
+  }
+  .panel h3 { font-family: var(--sans); font-size: 1.05rem; margin: 0 0 .6rem; }
+  .panel ul { margin: 0; padding-left: 1.2rem; color: var(--muted); }
+  .panel li { margin: .35rem 0; }
+  .panel li::marker { color: var(--accent); }
+  .panel p { color: var(--muted); margin: .4rem 0 0; }
+  .tree {
+    font-family: var(--mono); font-size: .82rem; line-height: 1.9;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.1rem; margin: 0; white-space: pre; overflow-x: auto;
+    color: var(--ink);
+  }
+  .tree .dir { color: var(--accent-ink); font-weight: 600; }
+  .tree .cur { color: var(--muted); }
+
+  .soc-link {
+    display: inline-flex; align-items: center; gap: .5rem;
+    font-family: var(--mono); font-size: .85rem; margin-top: .8rem;
+  }
+
+  footer.foot {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: .85rem;
+    padding: 1.6rem 0 2.4rem;
+    margin-top: 1.4rem;
+  }
+  footer.foot .wrap { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; align-items: baseline; justify-content: space-between; }
+  footer.foot .program { color: var(--accent-ink); font-weight: 600; }
+  footer.foot .note { font-family: var(--mono); font-size: .78rem; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow"><span class="dot" aria-hidden="true"></span> GitHub Pages · Cybersecurity · Brookdale Community College</p>
+    <h1>Security Cert <span class="x" aria-hidden="true">×</span><span class="sr-only"> and </span> SOC Exercises</h1>
+    <p class="lede">A prompt builder and a growing library of hands-on exercises — each one aligned to a specific certification objective and built to run inside the four-screen Simulated SOC.</p>
+
+    <div class="pipeline" aria-label="How an exercise is made">
+      <div class="stage">
+        <p class="step">Step 1 · Target</p>
+        <h2>Pick the objective</h2>
+        <p>Choose a certification, a domain, and the SOC scenario parameters — sector, difficulty, incident type, and an optional multidisciplinary lens.</p>
+      </div>
+      <div class="stage">
+        <p class="step">Step 2 · Prompt</p>
+        <h2>Build the prompt</h2>
+        <p>The builder assembles a structured, copy-ready prompt tuned to your target model — Claude XML, GPT markdown, or a lean reasoning-model format.</p>
+      </div>
+      <div class="stage">
+        <p class="step">Step 3 · Exercise</p>
+        <h2>Get the exercise</h2>
+        <p>Your model returns a single-file HTML exercise: scenario, tasks, MITRE mapping, weighted rubric, and a separable instructor answer key.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <!-- PROMPT BUILDER -->
+  <section class="section" aria-labelledby="builder-h">
+    <div class="builder">
+      <div>
+        <p class="tool-eyebrow">The tool</p>
+        <h2 id="builder-h">Security Cert × SOC Exercise Prompt Builder</h2>
+        <p>Select a certification and domain, set the scenario parameters, and pick your target model. The builder writes the prompt for you and exports Canvas-compatible HTML — no prompt engineering required.</p>
+        <div class="cert-row" aria-label="Supported certifications">
+          <span class="cert-tag">CISSP</span>
+          <span class="cert-tag">Security+</span>
+          <span class="cert-tag">CySA+</span>
+          <span class="cert-tag">CISM</span>
+          <span class="cert-tag">CISA</span>
+          <span class="cert-tag">CEH</span>
+        </div>
+      </div>
+      <a class="cta" href="cert-soc-prompt-builder.html" target="_blank" rel="noopener">Open the prompt builder <span class="arrow" aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a>
+    </div>
+  </section>
+
+  <!-- EXAMPLES -->
+  <section class="section" aria-labelledby="examples-h">
+    <div class="section-head">
+      <p class="kicker">Examples</p>
+      <h2 id="examples-h">Exercises built with the tool</h2>
+      <p>Two finished exercises produced by the builder. Each is a self-contained page — open it, work the tasks against the Simulated SOC dashboards, then remove the instructor key before handing it out.</p>
+    </div>
+
+    <div class="exhibits">
+
+      <article class="exhibit phi">
+        <span class="badge">CISSP · Domain 2</span>
+        <h3><a href="examples/cissp-domain2-phi-exfil-exercise.html" target="_blank" rel="noopener">PHI Exfiltration &amp; the Notification Clock<span class="sr-only"> (opens in a new tab)</span></a></h3>
+        <p class="blurb">Protected health information leaves a hospital system, and the response is measured against the breach-notification deadline as much as the containment steps.</p>
+        <dl class="spec">
+          <dt>Cert</dt><dd>CISSP</dd>
+          <dt>Domain</dt><dd>2.0 Asset Security</dd>
+          <dt>Sector</dt><dd>Healthcare / PHI</dd>
+          <dt>Incident</dt><dd>Data exfiltration</dd>
+          <dt>Focus</dt><dd>Breach-notification obligations</dd>
+        </dl>
+        <span class="open">Open exercise <span class="arrow" aria-hidden="true">↗</span></span>
+      </article>
+
+      <article class="exhibit pci">
+        <span class="badge">Security+ · Domain 1</span>
+        <h3><a href="examples/soc-secplus-d1-exfil.html" target="_blank" rel="noopener">Reading the Exfiltration: Foundational Security Concepts on a PCI Breach<span class="sr-only"> (opens in a new tab)</span></a></h3>
+        <p class="blurb">A batch account moves cardholder data out of the CDE at 2 a.m. Students map the incident to CIA, AAA, Zero Trust, and defense-in-depth — then re-read the same evidence as a potential crime.</p>
+        <dl class="spec">
+          <dt>Cert</dt><dd>Security+ SY0-701</dd>
+          <dt>Domain</dt><dd>1.0 General Security Concepts</dd>
+          <dt>Sector</dt><dd>Finance / PCI</dd>
+          <dt>Level</dt><dd>Foundational · ~35 min</dd>
+          <dt>Lens</dt><dd>Criminal Justice</dd>
+          <dt>ATT&amp;CK</dt><dd>T1048, T1567</dd>
+        </dl>
+        <span class="open">Open exercise <span class="arrow" aria-hidden="true">↗</span></span>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ABOUT / REPO -->
+  <section class="section" aria-labelledby="about-h">
+    <div class="section-head">
+      <p class="kicker">About</p>
+      <h2 id="about-h">What&rsquo;s in this repository</h2>
+    </div>
+    <div class="about-grid">
+      <div class="panel">
+        <h3>Every exercise is built to the same conventions</h3>
+        <ul>
+          <li>One self-contained HTML file — no external scripts, fonts, or CDNs, so it works offline and inside a Canvas iframe.</li>
+          <li>CSP-safe: all behavior wired through event listeners, nothing inline.</li>
+          <li>WCAG 2.1 AA — semantic landmarks, a skip link, keyboard-reachable controls, and visible focus.</li>
+          <li>Light and dark themes that follow the reader&rsquo;s system setting.</li>
+          <li>A collapsed instructor answer key at the end, clearly fenced so it can be deleted before distribution.</li>
+        </ul>
+        <p class="note">The exercises reference the Simulated SOC — a four-screen SIEM, network, incident-response, and threat-intel environment.</p>
+        <a class="soc-link" href="https://mqaissaunee-bcc.github.io/SOC/" target="_blank" rel="noopener">Open the Simulated SOC hub <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <span><span class="program">Security Cert × SOC Exercises</span> · Cybersecurity · Brookdale Community College · 2026</span>
+    <span class="note">All exercise indicators are fictional and defanged.</span>
+  </div>
+</footer>
+
+</body>
+</html>
