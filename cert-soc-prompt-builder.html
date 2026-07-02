@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security Cert × SOC Exercise Prompt Builder</title>
+<meta name="description" content="An instructor tool for authoring SOC-integrated exercises for any security certification — CISSP, Security+, CySA+, CISM, CISA, or CEH. Pick the cert, its domains load, choose a cert-appropriate framing, and copy a ready-to-use AI prompt that links to the four-screen Simulated SOC.">
+<style>
+  :root {
+    /* Light — "briefing dossier" */
+    --bg: #E9EDEF;
+    --surface: #FFFFFF;
+    --surface-2: #F3F6F7;
+    --ink: #14202A;
+    --muted: #55636D;
+    --line: #CDD7DC;
+    --line-strong: #B4C1C7;
+    --accent: #0E7C86;         /* teal — SOC / operational */
+    --accent-ink: #0A5B63;
+    --accent-soft: #DBEEF0;
+    --alt: #9A5808;            /* amber — cert framing / lens */
+    --alt-ink: #7E4706;
+    --alt-soft: #F6E9D6;
+    --crit: #B3261E;
+    --focus: #0E7C86;
+    --btn-bg: #0A5B63;
+    --btn-fg: #FFFFFF;
+    --shadow: 0 1px 2px rgba(20,32,42,.08), 0 8px 24px rgba(20,32,42,.06);
+    --radius: 10px;
+    --radius-sm: 7px;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0B111A; --surface: #121C27; --surface-2: #17232F; --ink: #E7EEF4;
+      --muted: #93A2AF; --line: #263544; --line-strong: #35485A;
+      --accent: #3ED9C6; --accent-ink: #86EBDD; --accent-soft: #0F2B2C;
+      --alt: #E8B341; --alt-ink: #F3CE7C; --alt-soft: #2E2410;
+      --crit: #FF6259; --focus: #3ED9C6; --btn-bg: #3ED9C6; --btn-fg: #06231F;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B111A; --surface: #121C27; --surface-2: #17232F; --ink: #E7EEF4;
+    --muted: #93A2AF; --line: #263544; --line-strong: #35485A;
+    --accent: #3ED9C6; --accent-ink: #86EBDD; --accent-soft: #0F2B2C;
+    --alt: #E8B341; --alt-ink: #F3CE7C; --alt-soft: #2E2410;
+    --crit: #FF6259; --focus: #3ED9C6; --btn-bg: #3ED9C6; --btn-fg: #06231F;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 16px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .skip-link {
+    position: absolute; left: -999px; top: 0; background: var(--accent);
+    color: #fff; padding: 10px 16px; border-radius: 0 0 var(--radius-sm) 0;
+    z-index: 100; font-weight: 600;
+  }
+  .skip-link:focus { left: 0; }
+  a { color: var(--accent-ink); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+  /* Header */
+  header { border-bottom: 1px solid var(--line); background: var(--surface); }
+  .head-wrap { max-width: 1240px; margin: 0 auto; padding: 18px 22px;
+    display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
+  .head-text { flex: 1 1 320px; min-width: 0; }
+  .eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent-ink); margin: 0 0 6px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .eyebrow .tag { color: var(--alt-ink); border: 1px solid var(--line-strong);
+    padding: 1px 7px; border-radius: 20px; letter-spacing: .1em; }
+  h1 { font-family: var(--serif); font-weight: 600;
+    font-size: clamp(1.5rem, 3.4vw, 2.15rem); line-height: 1.12;
+    margin: 0 0 6px; letter-spacing: -.01em; }
+  h1 .x { color: var(--alt); font-style: italic; padding: 0 .12em; }
+  .subtitle { color: var(--muted); margin: 0; max-width: 64ch; font-size: .96rem; }
+  .theme-toggle { font-family: var(--mono); font-size: .8rem; letter-spacing: .04em;
+    background: var(--surface-2); color: var(--ink); border: 1px solid var(--line-strong);
+    border-radius: 40px; padding: 9px 15px; min-height: 44px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .theme-toggle:hover { border-color: var(--accent); }
+  .theme-toggle .glyph { font-size: 1rem; }
+
+  /* Layout */
+  main { max-width: 1240px; margin: 0 auto; padding: 22px; }
+  .grid { display: grid; gap: 22px; grid-template-columns: 1fr; }
+  @media (min-width: 960px) { .grid { grid-template-columns: minmax(0,1.1fr) minmax(0,.9fr); align-items: start; } }
+
+  /* Presets */
+  .presets { margin-bottom: 20px; }
+  .preset-label { font-family: var(--mono); font-size: .72rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 9px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-family: var(--sans); font-size: .84rem; font-weight: 500;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong);
+    border-radius: 40px; padding: 8px 14px; min-height: 40px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; }
+  .chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); flex: none; }
+  .chip:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .chip.rnd::before { background: var(--alt); }
+  .chip.rnd:hover { border-color: var(--alt); background: var(--alt-soft); }
+
+  /* Card / builder */
+  .card { background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow); }
+  .builder { padding: 6px 20px 20px; }
+  fieldset { border: 0; border-top: 1px solid var(--line); margin: 0; padding: 20px 0 4px; }
+  fieldset:first-of-type { border-top: 0; }
+  legend.group-legend { font-family: var(--mono); font-size: .74rem; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--ink); padding: 0;
+    display: flex; align-items: center; gap: 9px; width: 100%; }
+  legend.group-legend .n { color: var(--surface); background: var(--accent);
+    width: 22px; height: 22px; border-radius: 5px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: .74rem; font-weight: 700; }
+  legend.group-legend .n.na { background: var(--alt); }
+
+  .field { margin-top: 15px; }
+  .field > label, .field > .field-title { display: block; font-weight: 600; font-size: .9rem; margin-bottom: 6px; }
+  .field .hint { color: var(--muted); font-weight: 400; font-size: .82rem; display: block; margin-top: 2px; }
+
+  select, input[type="text"] { width: 100%; font-family: var(--sans); font-size: .95rem;
+    color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm); padding: 11px 12px; min-height: 44px; }
+  select:hover, input[type="text"]:hover { border-color: var(--accent); }
+  .two-col { display: grid; gap: 15px; grid-template-columns: 1fr; }
+  @media (min-width: 560px) { .two-col { grid-template-columns: 1fr 1fr; } }
+
+  /* Cert pills (radio group) */
+  .cert-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .cert-pill { display: flex; align-items: center; gap: 9px; cursor: pointer;
+    border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+    padding: 9px 13px; background: var(--surface-2); min-height: 48px; }
+  .cert-pill:hover { border-color: var(--accent); }
+  .cert-pill input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+  .cert-pill .cp-text { display: flex; flex-direction: column; line-height: 1.2; }
+  .cert-pill .cp-name { font-weight: 700; font-size: .92rem; }
+  .cert-pill .cp-body { font-size: .72rem; color: var(--muted); }
+  .cert-pill:has(input:checked) { border-color: var(--accent);
+    background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+  .cert-full { margin: 12px 0 0; font-size: .84rem; color: var(--muted); }
+  .cert-full strong { color: var(--ink); }
+
+  /* Framing (amber) */
+  .altitude-field { background: var(--alt-soft); border: 1px solid var(--line-strong);
+    border-left: 4px solid var(--alt); border-radius: var(--radius-sm);
+    padding: 14px 14px 16px; margin-top: 15px; }
+  .altitude-field select:focus, .altitude-field select:hover { border-color: var(--alt); }
+  .altitude-why { font-size: .82rem; color: var(--muted); margin: 10px 0 0;
+    border-top: 1px dashed var(--line-strong); padding-top: 10px; }
+  .altitude-why strong { color: var(--alt-ink); }
+
+  /* Screen checks */
+  .checks { display: grid; gap: 8px; grid-template-columns: 1fr; }
+  @media (min-width: 560px) { .checks { grid-template-columns: 1fr 1fr; } }
+  .check { display: flex; gap: 10px; align-items: flex-start;
+    border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+    padding: 10px 12px; background: var(--surface-2); cursor: pointer; min-height: 44px; }
+  .check:hover { border-color: var(--accent); }
+  .check input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+  .check .c-body { min-width: 0; }
+  .check .c-name { display: block; font-weight: 600; font-size: .88rem; }
+  .check .c-desc { display: block; color: var(--muted); font-size: .78rem; margin-top: 1px; }
+
+  /* Toggles */
+  .toggles { display: grid; gap: 9px; margin-top: 4px; }
+  .toggle { display: flex; gap: 11px; align-items: flex-start;
+    border: 1px solid var(--line); border-radius: var(--radius-sm);
+    padding: 11px 13px; background: var(--surface-2); cursor: pointer; min-height: 44px; }
+  .toggle:hover { border-color: var(--alt); }
+  .toggle input { margin-top: 2px; width: 18px; height: 18px; accent-color: var(--alt); flex: none; }
+  .toggle .t-name { display: block; font-weight: 600; font-size: .88rem; }
+  .toggle .t-desc { display: block; color: var(--muted); font-size: .78rem; margin-top: 1px; }
+
+  /* Preview */
+  .preview-col { position: static; }
+  @media (min-width: 960px) { .preview-col { position: sticky; top: 16px; } }
+  .preview-head { display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .preview-head .p-title { font-family: var(--mono); font-size: .78rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 9px; }
+  .live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .live-dot { animation: pulse 2.4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(14,124,134,.45); } 50% { box-shadow: 0 0 0 6px rgba(14,124,134,0); } }
+  }
+  .char-count { font-family: var(--mono); font-size: .74rem; color: var(--muted); }
+  .prompt-box { padding: 14px 16px; }
+  #promptOut { width: 100%; min-height: 340px; resize: vertical;
+    font-family: var(--mono); font-size: .82rem; line-height: 1.55;
+    color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm); padding: 14px; white-space: pre-wrap; }
+  @media (min-width: 960px) { #promptOut { min-height: 52vh; } }
+  #promptOut:focus { border-color: var(--accent); }
+  @media (prefers-reduced-motion: no-preference) {
+    #promptOut.flash { animation: flashbg .5s ease; }
+    @keyframes flashbg { 0% { background: var(--accent-soft); } 100% { background: var(--surface-2); } }
+  }
+  .actions { display: flex; gap: 10px; padding: 0 16px 16px; flex-wrap: wrap; }
+  .btn { font-family: var(--sans); font-size: .92rem; font-weight: 600;
+    border-radius: var(--radius-sm); padding: 12px 18px; min-height: 44px; cursor: pointer;
+    border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-primary { background: var(--btn-bg); color: var(--btn-fg); }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+  .btn-ghost:hover { border-color: var(--accent); }
+  .btn-copied { background: var(--alt) !important; color: #2A1B02 !important; }
+  .live-msg { padding: 0 16px 14px; font-size: .82rem; color: var(--accent-ink);
+    min-height: 1.2em; font-weight: 600; }
+
+  .rec { margin: 8px 0 0; font-size: .8rem; color: var(--muted);
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .rec[hidden] { display: none; }
+  .rec .rec-txt::before { content: "\2605 "; color: var(--alt); }
+  .rec-apply { font-family: var(--sans); font-size: .78rem; font-weight: 600;
+    color: var(--alt-ink); background: var(--alt-soft); border: 1px solid var(--line-strong);
+    border-radius: 20px; padding: 4px 12px; min-height: 34px; cursor: pointer; }
+  .rec-apply:hover { border-color: var(--alt); }
+  .rec-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 0 2px; }
+  .btn-rec { font-family: var(--sans); font-weight: 600; font-size: .88rem;
+    color: var(--alt-ink); background: var(--alt-soft); border: 1px solid var(--alt);
+    border-radius: var(--radius-sm); padding: 11px 16px; min-height: 44px; cursor: pointer; }
+  .btn-rec:hover { filter: brightness(1.04); }
+  .rec-bar-note { font-size: .8rem; color: var(--muted); }
+
+  .model-note { margin: 4px 0 2px; font-size: .8rem; color: var(--muted);
+    background: var(--accent-soft); border: 1px solid var(--line-strong);
+    border-left: 3px solid var(--accent); border-radius: var(--radius-sm); padding: 9px 11px; }
+  .model-note::before { content: "What this changes: "; font-weight: 700; color: var(--accent-ink); }
+  .model-note:empty { display: none; }
+
+  footer { max-width: 1240px; margin: 8px auto 0; padding: 22px;
+    border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+  footer p { margin: 4px 0; }
+  footer .program { color: var(--ink); font-weight: 600; }
+  footer a { color: var(--accent-ink); }
+
+  .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<header>
+  <div class="head-wrap">
+    <div class="head-text">
+      <p class="eyebrow">Instructor Authoring Tool <span class="tag" id="eyebrowTag">Multi-Cert</span></p>
+      <h1>Security Cert <span class="x">×</span> SOC Exercise Prompt Builder</h1>
+      <p class="subtitle">Pick a certification and its domains load automatically. Choose a cert-appropriate framing, wire in the four-screen Simulated SOC, and copy a ready-to-paste AI prompt. Works for CISSP, Security+, CySA+, CISM, CISA, and CEH.</p>
+    </div>
+    <button type="button" class="theme-toggle" id="themeToggle" aria-pressed="false">
+      <span class="glyph" id="themeGlyph" aria-hidden="true">◐</span>
+      <span id="themeLabel">Theme</span>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+  <section class="presets" aria-labelledby="presetHead">
+    <p class="preset-label" id="presetHead">Quick-start recipes — tap to fill the whole builder</p>
+    <div class="chip-row" id="presetRow"></div>
+  </section>
+
+  <div class="grid">
+    <form class="card builder" id="builder" aria-label="Exercise parameters">
+
+      <!-- Cert selector -->
+      <fieldset>
+        <legend class="group-legend"><span class="n">0</span> Certification</legend>
+        <div class="cert-pills" id="certPills" role="radiogroup" aria-label="Certification"></div>
+        <p class="cert-full" id="certFull"></p>
+      </fieldset>
+
+      <div class="rec-bar">
+        <button type="button" class="btn-rec" id="applyAllRec">✨ Apply recommended settings</button>
+        <span class="rec-bar-note">Suggestions below update as you pick the certification, domain, and incident.</span>
+      </div>
+
+      <!-- Domain + framing -->
+      <fieldset>
+        <legend class="group-legend"><span class="n">1</span> Domain &amp; framing</legend>
+
+        <div class="field">
+          <label for="domain">Domain <span class="hint" id="domainHint">Loaded from the selected certification's exam blueprint.</span></label>
+          <select id="domain"></select>
+        </div>
+
+        <div class="altitude-field">
+          <span class="field-title" id="framingTitle">Framing / cognitive lens <span class="hint">Adapts to the certification — this is what keeps the exercise at the right altitude.</span></span>
+          <label class="visually-hidden" for="framing">Framing</label>
+          <select id="framing" aria-describedby="framingTitle altWhy"></select>
+          <p class="altitude-why" id="altWhy"></p>
+          <p class="rec" id="rec_framing" hidden></p>
+        </div>
+
+        <div class="field">
+          <span class="field-title">Exam-prep add-ons</span>
+          <div class="toggles">
+            <label class="toggle"><input type="checkbox" id="tk_cat"><span><span class="t-name">Append an exam-style practice question</span><span class="t-desc" id="catDesc">One item in the cert's exam format, with answer rationale.</span></span></label>
+            <label class="toggle"><input type="checkbox" id="tk_tip"><span><span class="t-name">Include an exam-tip callout</span><span class="t-desc" id="tipDesc">A role-appropriate "how this is tested" reminder.</span></span></label>
+            <label class="toggle"><input type="checkbox" id="tk_ethics"><span><span class="t-name" id="ethicsName">Add a professional-ethics angle</span><span class="t-desc">A code-of-ethics decision inside the scenario.</span></span></label>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- SOC scenario -->
+      <fieldset>
+        <legend class="group-legend"><span class="n">2</span> SOC scenario</legend>
+
+        <div class="field">
+          <span class="field-title">Screens used</span>
+          <div class="checks" id="screenChecks"></div>
+          <p class="rec" id="rec_screens" hidden></p>
+        </div>
+
+        <div class="two-col">
+          <div class="field"><label for="incident">Incident type</label><select id="incident"></select></div>
+          <div class="field"><label for="sector">Sector context</label><select id="sector"></select></div>
+        </div>
+
+        <div class="field">
+          <label for="anchor">Anchor to an existing SOC exercise <span class="hint">Optional — build on one of the 38 catalog exercises.</span></label>
+          <select id="anchor"></select>
+          <p class="rec" id="rec_anchor" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="mitre">MITRE ATT&amp;CK techniques <span class="hint">Optional — e.g. T1486, T1078. Blank lets the AI choose.</span></label>
+          <input type="text" id="mitre" placeholder="T1486, T1078, T1566">
+          <p class="rec" id="rec_mitre" hidden></p>
+        </div>
+      </fieldset>
+
+      <!-- Exercise shape -->
+      <fieldset>
+        <legend class="group-legend"><span class="n">3</span> Exercise shape</legend>
+
+        <div class="two-col">
+          <div class="field"><label for="difficulty">Difficulty</label><select id="difficulty"></select><p class="rec" id="rec_difficulty" hidden></p></div>
+          <div class="field"><label for="time">Estimated time</label><select id="time"></select></div>
+        </div>
+
+        <div class="field"><label for="deliverable">Primary deliverable</label><select id="deliverable"></select><p class="rec" id="rec_deliverable" hidden></p></div>
+
+        <div class="field">
+          <label for="lens">Multidisciplinary lens <span class="hint">Optional cross-program framing.</span></label>
+          <select id="lens"></select>
+        </div>
+      </fieldset>
+
+      <!-- Output & target model -->
+      <fieldset>
+        <legend class="group-legend"><span class="n">4</span> Output &amp; target model</legend>
+        <div class="two-col">
+          <div class="field">
+            <label for="model">Target model <span class="hint">Tailors the prompt's structure to the model.</span></label>
+            <select id="model"></select>
+          </div>
+          <div class="field">
+            <label for="format">Output format <span class="hint">Format of the exercise the AI returns.</span></label>
+            <select id="format"></select>
+          </div>
+        </div>
+        <p class="model-note" id="modelNote"></p>
+
+        <div class="field">
+          <span class="field-title">Include in the exercise</span>
+          <div class="toggles">
+            <label class="toggle"><input type="checkbox" id="tk_rubric" checked><span><span class="t-name">Include a weighted grading rubric</span><span class="t-desc">Point-allocated criteria summing to 100.</span></span></label>
+            <label class="toggle"><input type="checkbox" id="tk_key"><span><span class="t-name">Generate an instructor answer key</span><span class="t-desc">Model solution in a clearly separated section.</span></span></label>
+          </div>
+        </div>
+      </fieldset>
+    </form>
+
+    <!-- Preview -->
+    <section class="card preview-col" aria-labelledby="previewTitle">
+      <div class="preview-head">
+        <span class="p-title" id="previewTitle"><span class="live-dot" aria-hidden="true"></span> Assembled prompt</span>
+        <span class="char-count" id="charCount">0 chars</span>
+      </div>
+      <div class="prompt-box">
+        <label class="visually-hidden" for="promptOut">Generated prompt text</label>
+        <textarea id="promptOut" readonly spellcheck="false" aria-describedby="liveMsg"></textarea>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="copyBtn">Copy prompt</button>
+        <button type="button" class="btn btn-ghost" id="resetBtn">Reset</button>
+      </div>
+      <p class="live-msg" id="liveMsg" role="status" aria-live="polite"></p>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <p>Built for security certification instruction · integrates the <a href="https://mqaissaunee-bcc.github.io/SOC/" target="_blank" rel="noopener">Simulated SOC</a> (opens in a new tab) · Brookdale Community College · 2026</p>
+  <p>Instructor authoring aid — generates prompts only; always review AI output before assigning. Exam blueprints change with each version; verify against the current official objectives. Certification names are trademarks of their respective bodies (ISC², CompTIA, ISACA, EC-Council); this tool is independent and unaffiliated.</p>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------- Certification registry ---------------- */
+  var CERTS = [
+    {
+      id: "cissp", short: "CISSP", full: "CISSP", body: "ISC²",
+      audience: "The students are working IT/security professionals (3–5+ years) pursuing the ISC² CISSP. Reinforce the manager's-eye, risk-based mindset — not entry-level analyst tradecraft.",
+      role: "CISO", examFormat: "CAT (computerized adaptive), managerial best-answer style", ethicsCode: "ISC² Code of Ethics",
+      socNote: "",
+      domains: [
+        ["Domain 1 — Security & Risk Management","16%"],["Domain 2 — Asset Security","10%"],
+        ["Domain 3 — Security Architecture & Engineering","13%"],["Domain 4 — Communication & Network Security","13%"],
+        ["Domain 5 — Identity & Access Management","13%"],["Domain 6 — Security Assessment & Testing","12%"],
+        ["Domain 7 — Security Operations","13%"],["Domain 8 — Software Development Security","10%"]
+      ],
+      framings: [
+        ["risk","Risk-based decision (avoid / transfer / mitigate / accept)","Frame every task so the correct answer is a risk-treatment decision. Students reason explicitly in terms of avoid / transfer / mitigate / accept, weighing likelihood and business impact — never a bare technical action."],
+        ["governance","Governance & policy","Resolve each task at the governance layer: which policy/standard applies or failed, who owns the decision (data owner, system owner, senior management), and what policy change prevents recurrence."],
+        ["compliance","Compliance, legal & regulatory","Drive each task to the compliance/legal obligation: applicable frameworks (HIPAA, GDPR, PCI DSS, SOX), notification clocks, evidence duties, and regulator engagement — not the technical fix."],
+        ["exec","Executive / board communication","Require students to translate technical incident data into executive language: business risk, dollars, obligations, and a clear decision ask. Ban jargon and T-codes in the final deliverable."],
+        ["contrast","Technician-vs-manager contrast (both altitudes)","For each task, require TWO answers side by side: the technician's move and the CISSP manager's decision — then one line on why the exam rewards the latter. Make the altitude shift itself the lesson."]
+      ],
+      preset: { d:6, f:"risk", incident:"Ransomware", sector:"Healthcare / PHI", screens:[1,3,4], difficulty:"Advanced", time:"45 minutes", deliverable:"Executive / board briefing", lens:"None", anchor:"10", mitre:"T1486, T1490", cat:true, tip:true, ethics:false, rubric:true, key:true }
+    },
+    {
+      id: "secplus", short: "Security+", full: "CompTIA Security+ (SY0-701)", body: "CompTIA",
+      audience: "The students are early-career learners pursuing CompTIA Security+ (SY0-701). Reinforce hands-on, practical application of foundational concepts; keep it concrete and scenario-driven.",
+      role: "security practitioner", examFormat: "linear multiple-choice plus performance-based (PBQ) style", ethicsCode: "",
+      socNote: "The SOC screens are the student's hands-on environment — have them interpret the real dashboard data directly.",
+      domains: [
+        ["1.0 General Security Concepts","12%"],["2.0 Threats, Vulnerabilities & Mitigations","22%"],
+        ["3.0 Security Architecture","18%"],["4.0 Security Operations","28%"],
+        ["5.0 Security Program Management & Oversight","20%"]
+      ],
+      framings: [
+        ["technical","Hands-on technical analysis","Keep tasks concrete: read the actual dashboard/log data and determine what is happening technically, step by step."],
+        ["control","Control selection & configuration","Drive each task to selecting and applying the right control (technical/managerial/operational/physical; preventive/detective/corrective) for the situation."],
+        ["concept","Concept application","Frame tasks so students apply a foundational concept (CIA, AAA, zero trust, defense-in-depth) to a concrete scenario and explain the mapping."],
+        ["bestanswer","Best-answer reasoning (exam style)","Write tasks the way Security+ tests: 'most correct' choices among plausible options; require students to justify why the best answer beats the near-misses."],
+        ["layering","Defense-in-depth layering","Require students to layer multiple controls and explain how each layer compensates for the others' gaps."]
+      ],
+      preset: { d:3, f:"technical", incident:"Malware outbreak with lateral movement", sector:"Generic enterprise", screens:[1,4], difficulty:"Foundational", time:"30 minutes", deliverable:"Technical analysis report", lens:"None", anchor:"7", mitre:"", cat:true, tip:true, ethics:false, rubric:true, key:true }
+    },
+    {
+      id: "cysa", short: "CySA+", full: "CompTIA CySA+ (CS0-003)", body: "CompTIA",
+      audience: "The students are security analysts pursuing CompTIA CySA+ (CS0-003). Reinforce day-to-day SOC / blue-team analysis: detection, triage, vulnerability management, and incident response.",
+      role: "SOC analyst", examFormat: "linear multiple-choice plus performance-based (PBQ) style", ethicsCode: "",
+      socNote: "This is the student's native environment — center the exercise on live triage, detection, and response using the screens.",
+      domains: [
+        ["1.0 Security Operations","33%"],["2.0 Vulnerability Management","30%"],
+        ["3.0 Incident Response & Management","20%"],["4.0 Reporting & Communication","17%"]
+      ],
+      framings: [
+        ["triage","Alert triage & detection","Center tasks on triage: validate true vs false positive, prioritize by severity and asset criticality, and decide the next investigative step."],
+        ["intel","Threat-intel correlation","Drive tasks to correlate observed activity with threat intelligence and IOCs, pivoting across telemetry to build the picture."],
+        ["ir","Incident response execution","Frame tasks as hands-on IR: confirm, contain, eradicate, recover, and produce an after-action note."],
+        ["detection","Detection engineering & tuning","Resolve tasks by writing or tuning detection logic: reduce false positives, close coverage gaps, and reason about precision/recall."],
+        ["reporting","Reporting & communication","Frame the deliverable as clear reporting: translate technical findings for the intended audience with accurate, actionable language."]
+      ],
+      preset: { d:0, f:"triage", incident:"Phishing / business email compromise", sector:"Generic enterprise", screens:[1,3,4], difficulty:"Intermediate", time:"35 minutes", deliverable:"Detection / hunt writeup", lens:"None", anchor:"1", mitre:"", cat:true, tip:true, ethics:false, rubric:true, key:true }
+    },
+    {
+      id: "cism", short: "CISM", full: "ISACA CISM", body: "ISACA",
+      audience: "The students are security managers pursuing ISACA CISM (Certified Information Security Manager). Reinforce governance, program management, and management-level judgment — 'how to decide,' not 'how to configure.'",
+      role: "security manager", examFormat: "150-question linear, scenario/management style", ethicsCode: "ISACA Code of Professional Ethics",
+      socNote: "Treat the SOC screens as evidence about the security program's effectiveness — read them for governance and management signal, not analyst tradecraft.",
+      domains: [
+        ["Domain 1 — Information Security Governance","17%"],["Domain 2 — Information Security Risk Management","20%"],
+        ["Domain 3 — Information Security Program","33%"],["Domain 4 — Incident Management","30%"]
+      ],
+      framings: [
+        ["gov","Governance & strategy alignment","Resolve each task at the governance layer: align the decision to business objectives, enterprise risk appetite, and the security strategy; name the accountable owner."],
+        ["risk","Risk-based decision & treatment","Drive tasks to a risk decision: assess against risk appetite and treat (accept/mitigate/transfer/avoid) with business justification, not a technical fix."],
+        ["program","Program management & execution","Frame tasks as program-management decisions: resourcing, metrics, control integration, third-party management, and how strategy becomes sustainable operation."],
+        ["incident","Incident leadership & escalation","Frame the response from the manager's chair: escalation, stakeholder coordination, communications, and decisions under pressure — not hands-on containment."],
+        ["exec","Executive & board communication","Require students to translate incident data into executive language: business risk, dollars, obligations, and a clear decision ask, free of jargon."]
+      ],
+      preset: { d:0, f:"gov", incident:"Ransomware", sector:"Finance / PCI", screens:[3,4], difficulty:"Advanced", time:"40 minutes", deliverable:"Executive / board briefing", lens:"Business & Risk", anchor:"20", mitre:"", cat:false, tip:true, ethics:false, rubric:true, key:true }
+    },
+    {
+      id: "cisa", short: "CISA", full: "ISACA CISA", body: "ISACA",
+      audience: "The students are IT auditors pursuing ISACA CISA (Certified Information Systems Auditor). Reinforce audit process, control testing, evidence, and independent assurance — objectivity preserved throughout.",
+      role: "IS auditor", examFormat: "150-question linear, scenario/audit style", ethicsCode: "ISACA Code of Professional Ethics",
+      socNote: "Treat the SOC as the control environment under audit — the student's job is to test whether controls operate effectively and gather audit evidence, not to run the incident.",
+      domains: [
+        ["Domain 1 — Information Systems Auditing Process","18%"],["Domain 2 — Governance & Management of IT","17%"],
+        ["Domain 3 — IS Acquisition, Development & Implementation","12%"],["Domain 4 — IS Operations & Business Resilience","26%"],
+        ["Domain 5 — Protection of Information Assets","27%"]
+      ],
+      framings: [
+        ["control","Control design & operating-effectiveness testing","Frame each task as a control test: identify the control objective, design a test of design and of operating effectiveness, and conclude on whether the control works."],
+        ["evidence","Audit evidence & workpapers","Drive tasks to evidence: what to gather, how to document it in workpapers, sampling approach, and sufficiency/appropriateness of evidence."],
+        ["finding","Audit finding & recommendation","Resolve each task as a finding: condition, criteria, cause, effect, and a risk-ranked recommendation the auditee can act on."],
+        ["compliance","Compliance & framework mapping","Map the situation to applicable frameworks (COBIT, NIST, ISO 27001, ITAF) and assess conformance; cite the control reference."],
+        ["scoping","Risk-based audit scoping","Frame tasks as audit planning: scope, materiality, and where to focus testing based on risk — independence preserved."]
+      ],
+      preset: { d:4, f:"control", incident:"Cloud misconfiguration", sector:"Healthcare / PHI", screens:[1,3], difficulty:"Intermediate", time:"40 minutes", deliverable:"Audit findings & recommendations", lens:"None", anchor:"33", mitre:"", cat:false, tip:true, ethics:false, rubric:true, key:true }
+    },
+    {
+      id: "ceh", short: "CEH", full: "EC-Council CEH (v13)", body: "EC-Council",
+      audience: "The students are learners pursuing EC-Council CEH (v13). Reinforce attacker methodology and TTPs, applied strictly ethically and always mapped back to defensive value.",
+      role: "ethical hacker", examFormat: "scenario-based multiple-choice style", ethicsCode: "EC-Council Code of Ethics",
+      socNote: "Frame the SOC as the defender's-eye view: for each offensive step, have the student identify how it would surface in the SIEM, network, or endpoint telemetry — connecting attacker TTPs to blue-team detection.",
+      domains: [
+        ["1 — Information Security & Ethical Hacking Overview","~6%"],["2 — Reconnaissance Techniques","~21%"],
+        ["3 — System Hacking Phases & Attack Techniques","~17%"],["4 — Network & Perimeter Hacking","~14%"],
+        ["5 — Web Application Hacking","~16%"],["6 — Wireless Network Hacking","~6%"],
+        ["7 — Mobile, IoT & OT Hacking","~8%"],["8 — Cloud Computing","~6%"],["9 — Cryptography","~6%"]
+      ],
+      framings: [
+        ["recon","Reconnaissance & enumeration reasoning","Frame tasks around recon/enumeration: what an attacker would gather, from which sources, and what it reveals about attack surface — mapped to how it appears defensively."],
+        ["exploit","Exploitation path analysis","Drive tasks to reason about the exploitation path: which weakness, why it works, and the chain from foothold to objective — ethically and hypothetically only."],
+        ["ttp","Attacker TTP mapping (MITRE ATT&CK)","Frame tasks around mapping observed or planned attacker behavior to MITRE ATT&CK tactics and techniques."],
+        ["defense","Defensive countermeasure derivation","Resolve each offensive task into the countermeasure: given the technique, what detection or control stops it — connect red insight to blue action."],
+        ["method","Methodology & tool selection","Frame tasks around choosing the right phase-appropriate methodology and tools, and justifying the choice for the scenario."]
+      ],
+      preset: { d:1, f:"ttp", incident:"APT / nation-state intrusion", sector:"Generic enterprise", screens:[1,2,4], difficulty:"Advanced", time:"45 minutes", deliverable:"Penetration test findings report", lens:"None", anchor:"11", mitre:"T1595, T1590", cat:true, tip:true, ethics:true, rubric:true, key:true }
+    }
+  ];
+
+  /* ---------------- Recommendation maps ---------------- */
+  var REC_FRAMING = {
+    cissp: ["risk","compliance","governance","governance","governance","risk","risk","governance"],
+    secplus: ["concept","technical","layering","technical","control"],
+    cysa: ["triage","detection","ir","reporting"],
+    cism: ["gov","risk","program","incident"],
+    cisa: ["scoping","compliance","control","finding","control"],
+    ceh: ["method","recon","exploit","ttp","exploit","ttp","defense","defense","method"]
+  };
+  var REC_DELIVERABLE = {
+    cissp: { risk:"Quantitative risk assessment (ALE / ARO / SLE)", governance:"Policy / procedure recommendation", compliance:"Regulatory notification timeline", exec:"Executive / board briefing", contrast:"Decision memo" },
+    secplus: { technical:"Technical analysis report", control:"Remediation / mitigation plan", concept:"Technical analysis report", bestanswer:"Technical analysis report", layering:"Remediation / mitigation plan" },
+    cysa: { triage:"Detection / hunt writeup", intel:"Detection / hunt writeup", ir:"Incident report / after-action review", detection:"Detection / hunt writeup", reporting:"Incident report / after-action review" },
+    cism: { gov:"Policy / procedure recommendation", risk:"Quantitative risk assessment (ALE / ARO / SLE)", program:"SOC metrics & improvement plan", incident:"Incident report / after-action review", exec:"Executive / board briefing" },
+    cisa: { control:"Audit findings & recommendations", evidence:"Audit findings & recommendations", finding:"Audit findings & recommendations", compliance:"Audit findings & recommendations", scoping:"Audit findings & recommendations" },
+    ceh: { recon:"Penetration test findings report", exploit:"Penetration test findings report", ttp:"Penetration test findings report", defense:"Remediation / mitigation plan", method:"Penetration test findings report" }
+  };
+  var REC_DIFFICULTY = { cissp:"Advanced", secplus:"Foundational", cysa:"Intermediate", cism:"Advanced", cisa:"Intermediate", ceh:"Advanced" };
+  var INCIDENT_SCREENS = {
+    "Ransomware":[1,3,4], "Phishing / business email compromise":[1,4], "Insider threat":[1,3],
+    "Data exfiltration":[1,2,4], "Credential / brute-force attack":[1,2,3], "APT / nation-state intrusion":[1,2,4],
+    "Cloud misconfiguration":[1,3], "Identity / session-token theft (AiTM)":[1,3,4], "Zero-day exploitation":[1,2,4],
+    "Supply-chain / CI-CD compromise":[1,2,4], "Deepfake / AI-enabled social engineering":[1,3],
+    "Malware outbreak with lateral movement":[1,3,4], "Instructor's choice / mixed signals":[1,3,4]
+  };
+  var INCIDENT_ANCHOR = {
+    "Ransomware":"10", "Phishing / business email compromise":"9", "Insider threat":"13",
+    "Data exfiltration":"8", "Credential / brute-force attack":"6", "APT / nation-state intrusion":"11",
+    "Cloud misconfiguration":"33", "Identity / session-token theft (AiTM)":"34", "Zero-day exploitation":"14",
+    "Supply-chain / CI-CD compromise":"35", "Deepfake / AI-enabled social engineering":"37",
+    "Malware outbreak with lateral movement":"7", "Instructor's choice / mixed signals":""
+  };
+  var INCIDENT_MITRE = {
+    "Ransomware":"T1486, T1490", "Phishing / business email compromise":"T1566", "Insider threat":"T1052, T1567",
+    "Data exfiltration":"T1048, T1567", "Credential / brute-force attack":"T1110, T1078", "APT / nation-state intrusion":"T1195, T1071",
+    "Cloud misconfiguration":"T1578, T1530", "Identity / session-token theft (AiTM)":"T1078, T1556", "Zero-day exploitation":"T1190",
+    "Supply-chain / CI-CD compromise":"T1195, T1552", "Deepfake / AI-enabled social engineering":"T1566, T1598",
+    "Malware outbreak with lateral movement":"T1055, T1021", "Instructor's choice / mixed signals":""
+  };
+
+  /* ---------------- Shared data ---------------- */
+  var SCREENS = [
+    { n: 1, name: "Screen 1 — SIEM Dashboard", desc: "Alert queue, severity filters, MITRE ATT&CK heatmap, alert trends, SOC metrics (MTTD/MTTR/false-positive rate).", url: "https://mqaissaunee-bcc.github.io/SOC/soc-screen1-siem-dashboard-fixed.html" },
+    { n: 2, name: "Screen 2 — Network Monitor", desc: "Global threat map, traffic graphs, firewall logs, top talkers, port activity.", url: "https://mqaissaunee-bcc.github.io/SOC/soc-screen2-network-monitor-enhanced.html" },
+    { n: 3, name: "Screen 3 — Incident Response", desc: "Case management, IOC details, affected assets, response actions, playbooks, sector tags (Healthcare/PHI, Finance/PCI, OT).", url: "https://mqaissaunee-bcc.github.io/SOC/soc-screen3-incident-response-fixed.html" },
+    { n: 4, name: "Screen 4 — Threat Intel & Endpoints", desc: "Threat feeds, endpoint status (incl. medical & OT/SCADA assets), vulnerability management, compliance scores.", url: "https://mqaissaunee-bcc.github.io/SOC/soc-screen4-threat-intel-fixed.html" }
+  ];
+
+  var INCIDENTS = ["Ransomware","Phishing / business email compromise","Insider threat","Data exfiltration","Credential / brute-force attack","APT / nation-state intrusion","Cloud misconfiguration","Identity / session-token theft (AiTM)","Zero-day exploitation","Supply-chain / CI-CD compromise","Deepfake / AI-enabled social engineering","Malware outbreak with lateral movement","Instructor's choice / mixed signals"];
+  var SECTORS = ["Generic enterprise","Healthcare / PHI","Finance / PCI","OT / industrial / SCADA","Government / public sector","Higher education","Cloud-native SaaS","Critical infrastructure"];
+  var DIFFICULTY = ["Foundational","Intermediate","Advanced"];
+  var TIMES = ["15 minutes","20 minutes","30 minutes","35 minutes","40 minutes","45 minutes","60 minutes","75 minutes (capstone)"];
+  var DELIVERABLES = ["Executive / board briefing","Quantitative risk assessment (ALE / ARO / SLE)","Decision memo","Incident report / after-action review","Policy / procedure recommendation","Regulatory notification timeline","Chain-of-custody documentation","Audit findings & recommendations","Detection / hunt writeup","Remediation / mitigation plan","Penetration test findings report","Technical analysis report","SOC metrics & improvement plan"];
+  var LENSES = ["None","Computer Science","Data Science","Business & Risk","Criminal Justice","Psychology","Healthcare","Engineering","Social Science"];
+  var MODELS = [
+    { v:"generic", label:"Generic / any model", scaffold:"markdown", note:"Neutral Markdown structure that works acceptably across any model." },
+    { v:"claude", label:"Claude (Anthropic)", scaffold:"xml", note:"Uses XML-tag delimiters (role, scenario, output_format, \u2026) and explicit structure \u2014 Anthropic's recommended convention for Claude." },
+    { v:"chatgpt", label:"ChatGPT (OpenAI GPT-4-class)", scaffold:"markdown", note:"Markdown headers and numbered structure \u2014 the layout GPT-4-class models follow most reliably." },
+    { v:"gemini", label:"Gemini (Google)", scaffold:"markdown", note:"Markdown headers with explicit, spelled-out output requirements \u2014 Gemini follows literal structure well." },
+    { v:"copilot", label:"Microsoft Copilot", scaffold:"markdown", note:"Concise Markdown with work-ready phrasing \u2014 suited to Copilot's business context." },
+    { v:"reasoning", label:"Reasoning model (o-series, R1)", scaffold:"minimal", note:"Strips the step-by-step scaffolding: states the objective and constraints and lets the model structure its own reasoning. Best for o-series / DeepSeek-R1-style models." }
+  ];
+  var FORMATS = [
+    { v:"markdown", label:"Markdown", spec:"Return the exercise as clean, well-structured Markdown: descriptive headers, numbered task lists, and no wrapping code fence around the whole document." },
+    { v:"html_module", label:"Single-file interactive HTML module", spec:"Return ONE complete single-file HTML document (all CSS and JS inline; no external or CDN resources) that renders as an interactive, student-facing learning module: collapsible sections, semantic landmarks (header / main / footer), a skip link, controls bound only via addEventListener (no inline on-event handlers \u2014 CSP-safe), WCAG 2.1 AA contrast, responsive layout, and a prefers-color-scheme dark mode. If an instructor answer key is requested, place it in a clearly separated, collapsed instructor-only section at the end so it can be deleted before sharing." },
+    { v:"canvas_html", label:"Canvas-embeddable HTML", spec:"Return an HTML fragment for pasting directly into the Canvas LMS Rich Content Editor. Canvas strips out any style block, script, and class-based CSS, so ALL styling MUST be applied as inline style=\"...\" attributes on each individual element (colors, background, padding, margins, borders, font sizes, and full table styling on every table, tr, th, and td). Do NOT use a style block, class or id selectors, JavaScript, or any external/CDN resource. Use only Canvas-safe semantic tags (h2-h4, p, ul/ol/li, strong/em, and table/thead/tbody/tr/th/td), and make sure every visual style a student should see lives in an inline style attribute so it renders correctly and survives Canvas sanitization." },
+    { v:"pdf", label:"PDF (print-ready)", spec:"Return a clean, print-ready document (well-structured Markdown or simple HTML) formatted for PDF export: a title block, clear heading hierarchy, sensible page-break points between major sections, and no interactive elements." },
+    { v:"word", label:"Word (.docx-ready)", spec:"Return the exercise formatted to paste cleanly into Microsoft Word: use heading levels, bold labels, and normal paragraphs and tables, with NO raw Markdown symbols and no code fences, so it lands as a formatted document rather than chat text." }
+  ];
+
+  var RECIPES = [
+    { label:"CISSP · Ransomware IR", cert:"cissp", d:6, f:"risk", incident:"Ransomware", sector:"Healthcare / PHI", screens:[1,3,4], difficulty:"Advanced", time:"45 minutes", deliverable:"Executive / board briefing", lens:"None", anchor:"10", mitre:"T1486, T1490", cat:true, tip:true, ethics:false, rubric:true, key:true, format:"markdown" },
+    { label:"CISSP · Breach notification", cert:"cissp", d:1, f:"compliance", incident:"Data exfiltration", sector:"Healthcare / PHI", screens:[3,4], difficulty:"Advanced", time:"45 minutes", deliverable:"Regulatory notification timeline", lens:"None", anchor:"21", mitre:"", cat:false, tip:true, ethics:false, rubric:true, key:true, format:"markdown" },
+    { label:"CISSP · Board risk brief", cert:"cissp", d:0, f:"exec", incident:"Ransomware", sector:"Finance / PCI", screens:[3,4], difficulty:"Advanced", time:"40 minutes", deliverable:"Executive / board briefing", lens:"Business & Risk", anchor:"20", mitre:"", cat:false, tip:true, ethics:false, rubric:true, key:true, format:"word" },
+    { label:"Security+ · Ops hands-on", cert:"secplus", d:3, f:"technical", incident:"Malware outbreak with lateral movement", sector:"Generic enterprise", screens:[1,4], difficulty:"Foundational", time:"30 minutes", deliverable:"Technical analysis report", lens:"None", anchor:"7", mitre:"", cat:true, tip:true, ethics:false, rubric:true, key:true, format:"html_module" },
+    { label:"Security+ · Phishing triage", cert:"secplus", d:1, f:"technical", incident:"Phishing / business email compromise", sector:"Generic enterprise", screens:[1,4], difficulty:"Foundational", time:"30 minutes", deliverable:"Technical analysis report", lens:"None", anchor:"9", mitre:"T1566", cat:true, tip:true, ethics:false, rubric:true, key:true, format:"markdown" },
+    { label:"Security+ · Architecture & controls", cert:"secplus", d:2, f:"layering", incident:"Cloud misconfiguration", sector:"Cloud-native SaaS", screens:[1,3], difficulty:"Intermediate", time:"35 minutes", deliverable:"Remediation / mitigation plan", lens:"None", anchor:"33", mitre:"", cat:true, tip:true, ethics:false, rubric:true, key:true, format:"markdown" },
+    { label:"CySA+ · SOC triage", cert:"cysa", d:0, f:"triage", incident:"Phishing / business email compromise", sector:"Generic enterprise", screens:[1,3,4], difficulty:"Intermediate", time:"35 minutes", deliverable:"Detection / hunt writeup", lens:"None", anchor:"1", mitre:"", cat:true, tip:true, ethics:false, rubric:true, key:true, format:"canvas_html" },
+    { label:"CySA+ · Threat hunt", cert:"cysa", d:0, f:"intel", incident:"APT / nation-state intrusion", sector:"Cloud-native SaaS", screens:[1,2,4], difficulty:"Intermediate", time:"40 minutes", deliverable:"Detection / hunt writeup", lens:"None", anchor:"11", mitre:"T1071, T1595", cat:false, tip:true, ethics:false, rubric:true, key:true, format:"html_module" },
+    { label:"CySA+ · Vuln management", cert:"cysa", d:1, f:"detection", incident:"Zero-day exploitation", sector:"Generic enterprise", screens:[4,1,2], difficulty:"Intermediate", time:"40 minutes", deliverable:"Remediation / mitigation plan", lens:"None", anchor:"14", mitre:"T1190", cat:false, tip:true, ethics:false, rubric:true, key:true, format:"markdown" },
+    { label:"CISM · Governance", cert:"cism", d:0, f:"gov", incident:"Ransomware", sector:"Finance / PCI", screens:[3,4], difficulty:"Advanced", time:"40 minutes", deliverable:"Policy / procedure recommendation", lens:"Business & Risk", anchor:"20", mitre:"", cat:false, tip:true, ethics:false, rubric:true, key:true, format:"markdown" },
+    { label:"CISM · Incident command", cert:"cism", d:3, f:"incident", incident:"Ransomware", sector:"Healthcare / PHI", screens:[1,3,4], difficulty:"Advanced", time:"45 minutes", deliverable:"Incident report / after-action review", lens:"None", anchor:"10", mitre:"T1486", cat:false, tip:true, ethics:false, rubric:true, key:true, format:"pdf" },
+    { label:"CISA · Control audit", cert:"cisa", d:4, f:"control", incident:"Cloud misconfiguration", sector:"Healthcare / PHI", screens:[1,3], difficulty:"Intermediate", time:"40 minutes", deliverable:"Audit findings & recommendations", lens:"None", anchor:"33", mitre:"", cat:false, tip:true, ethics:false, rubric:true, key:true, format:"markdown" },
+    { label:"CISA · HIPAA access audit", cert:"cisa", d:4, f:"finding", incident:"Insider threat", sector:"Healthcare / PHI", screens:[3], difficulty:"Intermediate", time:"35 minutes", deliverable:"Audit findings & recommendations", lens:"None", anchor:"27", mitre:"", cat:false, tip:true, ethics:false, rubric:true, key:true, format:"markdown" },
+    { label:"CEH · Recon & TTPs", cert:"ceh", d:1, f:"ttp", incident:"APT / nation-state intrusion", sector:"Generic enterprise", screens:[1,2,4], difficulty:"Advanced", time:"45 minutes", deliverable:"Penetration test findings report", lens:"None", anchor:"11", mitre:"T1595, T1590", cat:true, tip:true, ethics:true, rubric:true, key:true, format:"markdown" },
+    { label:"CEH · Blue-team countermeasures", cert:"ceh", d:3, f:"defense", incident:"Credential / brute-force attack", sector:"Generic enterprise", screens:[1,2,3], difficulty:"Advanced", time:"40 minutes", deliverable:"Remediation / mitigation plan", lens:"None", anchor:"6", mitre:"T1110, T1078", cat:false, tip:true, ethics:true, rubric:true, key:true, format:"markdown" }
+  ];
+
+  var EXERCISES = [
+    { g: "Tier 1 — Alert Triage" },
+    { id:1, t:"Alert Severity Assessment & Prioritization", s:[1], d:["D7"] },
+    { id:2, t:"False Positive Identification", s:[1,4], d:["D7","D6"] },
+    { id:3, t:"Network Traffic Baseline Analysis", s:[2], d:["D4"] },
+    { id:4, t:"Escalation Decision Making", s:[1,3], d:["D7"] },
+    { id:5, t:"Endpoint Health Monitoring", s:[4], d:["D7"] },
+    { g: "Tier 2 — Incident Response" },
+    { id:6, t:"Brute Force Attack Investigation", s:[1,2,3], d:["D5","D7"] },
+    { id:7, t:"Malware Outbreak Containment", s:[1,3,4], d:["D7"] },
+    { id:8, t:"Data Exfiltration Detection", s:[1,2,4], d:["D7","D2"] },
+    { id:9, t:"Phishing Campaign Response", s:[1,4], d:["D7","D5"] },
+    { id:10, t:"Playbook Execution — Ransomware Response", s:[1,3,4], d:["D7"] },
+    { g: "Tier 3 — Threat Hunting" },
+    { id:11, t:"APT Campaign Detection & Attribution", s:[1,2,4], d:["D7","D6"] },
+    { id:12, t:"MITRE ATT&CK Chain Reconstruction", s:[1,3], d:["D7","D6"] },
+    { id:13, t:"Insider Threat Investigation", s:[1,2,4], d:["D7","D1"] },
+    { id:14, t:"Zero-Day Vulnerability Response", s:[4,1,2], d:["D6","D7"] },
+    { id:15, t:"SOC Metrics & Improvement Planning", s:[1,3,4], d:["D6","D1"] },
+    { g: "Multidisciplinary — Computer Science" },
+    { id:16, t:"Detection Rule Authoring & Tuning", s:[1,4], d:["D6","D8"] },
+    { id:17, t:"Log Parsing & Alert Deduplication", s:[1], d:["D6","D8"] },
+    { g: "Multidisciplinary — Data Science" },
+    { id:18, t:"SOC Metric Interpretation & Trend Analysis", s:[1], d:["D6"] },
+    { id:19, t:"Precision/Recall & Alert Prioritization Scoring", s:[1,4], d:["D6"] },
+    { g: "Multidisciplinary — Business & Risk" },
+    { id:20, t:"Risk Quantification & Executive Briefing", s:[3,4], d:["D1"] },
+    { id:21, t:"Breach Notification Decision & Regulatory Mapping", s:[3,4], d:["D1","D2"] },
+    { g: "Multidisciplinary — Criminal Justice" },
+    { id:22, t:"Evidence Preservation & Chain of Custody", s:[3], d:["D7"] },
+    { id:23, t:"Cross-Border Investigation & Jurisdiction", s:[2,3], d:["D1"] },
+    { g: "Multidisciplinary — Psychology" },
+    { id:24, t:"Insider Threat Behavioral Analysis", s:[3,1], d:["D1","D7"] },
+    { id:25, t:"Analyst Fatigue & Decision Quality", s:[1], d:["D6"] },
+    { g: "Multidisciplinary — Healthcare" },
+    { id:26, t:"Medical Device Incident Response", s:[4,3], d:["D7"] },
+    { id:27, t:"HIPAA Privacy Audit Investigation", s:[3], d:["D2","D1"] },
+    { g: "Multidisciplinary — Engineering" },
+    { id:28, t:"OT Incident Response & Safety-Critical Containment", s:[2,4], d:["D7","D4"] },
+    { id:29, t:"Smart Building / BMS Security Assessment", s:[4], d:["D4","D3"] },
+    { g: "Multidisciplinary — Social Science" },
+    { id:30, t:"Whistleblower Protection vs. Insider Threat Response", s:[3], d:["D1"] },
+    { g: "Cross-Disciplinary Capstones" },
+    { id:31, t:"Hospital Ransomware: Multi-Lens Response", s:[1,2,3,4], d:["D1","D7"] },
+    { id:32, t:"Manufacturing APT: OT Compromise Under the Microscope", s:[1,2,3,4], d:["D7","D1"] },
+    { g: "Cloud & Identity" },
+    { id:33, t:"Public S3 Bucket Exposure Triage", s:[1,3], d:["D2","D5"] },
+    { id:34, t:"Identity Attack Chain: AiTM Phishing to Inbox Rule", s:[1,3,4], d:["D5"] },
+    { id:35, t:"CI/CD Token Compromise & Cloud Blast Radius", s:[1,2,4], d:["D8","D5"] },
+    { id:36, t:"Kubernetes Runtime Hunt: Container Escape Attempt", s:[1,2,4], d:["D8","D7"] },
+    { g: "AI-Era Threats" },
+    { id:37, t:"Deepfake Vishing & AI-Generated Spearphish Triage", s:[1,3], d:["D1","D5"] },
+    { id:38, t:"Audit the AI Copilot's Triage", s:[1,3,4], d:["D6"] }
+  ];
+
+  var HUB_URL = "https://mqaissaunee-bcc.github.io/SOC/";
+  var STUDENT_URL = "https://mqaissaunee-bcc.github.io/SOC/soc-training-exercises-student.html";
+
+  /* ---------------- Helpers ---------------- */
+  function $(id){ return document.getElementById(id); }
+  function opt(v,t){ var o=document.createElement("option"); o.value=v; o.textContent=t; return o; }
+  function certById(id){ for(var i=0;i<CERTS.length;i++) if(CERTS[i].id===id) return CERTS[i]; return CERTS[0]; }
+  function framingByV(cert,v){ for(var i=0;i<cert.framings.length;i++) if(cert.framings[i][0]===v) return cert.framings[i]; return cert.framings[0]; }
+  function exById(id){ for(var i=0;i<EXERCISES.length;i++) if(EXERCISES[i].id===id) return EXERCISES[i]; return null; }
+  function screenByN(n){ for(var i=0;i<SCREENS.length;i++) if(SCREENS[i].n===n) return SCREENS[i]; return null; }
+  function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function fillSelect(sel,items){ sel.innerHTML=""; for(var i=0;i<items.length;i++) sel.appendChild(opt(items[i],items[i])); }
+
+  /* ---------------- Populate static controls ---------------- */
+  fillSelect($("incident"),INCIDENTS);
+  fillSelect($("sector"),SECTORS);
+  fillSelect($("difficulty"),DIFFICULTY);
+  fillSelect($("time"),TIMES);
+  fillSelect($("deliverable"),DELIVERABLES);
+  fillSelect($("lens"),LENSES);
+  (function(){ var m=$("model"); for(var i=0;i<MODELS.length;i++) m.appendChild(opt(MODELS[i].v,MODELS[i].label));
+    var ff=$("format"); for(var i=0;i<FORMATS.length;i++) ff.appendChild(opt(FORMATS[i].v,FORMATS[i].label)); })();
+
+  // Cert pills
+  (function buildCertPills(){
+    var wrap=$("certPills");
+    for(var i=0;i<CERTS.length;i++){
+      var c=CERTS[i];
+      var lbl=document.createElement("label"); lbl.className="cert-pill";
+      var rb=document.createElement("input"); rb.type="radio"; rb.name="cert"; rb.value=c.id; rb.className="certRadio";
+      var txt=document.createElement("span"); txt.className="cp-text";
+      var nm=document.createElement("span"); nm.className="cp-name"; nm.textContent=c.short;
+      var bd=document.createElement("span"); bd.className="cp-body"; bd.textContent=c.body+" · "+c.domains.length+" domains";
+      txt.appendChild(nm); txt.appendChild(bd);
+      lbl.appendChild(rb); lbl.appendChild(txt);
+      wrap.appendChild(lbl);
+    }
+  })();
+
+  // Anchor select
+  (function buildAnchor(){
+    var sel=$("anchor"); sel.appendChild(opt("","None — original scenario"));
+    var grp=null;
+    for(var i=0;i<EXERCISES.length;i++){
+      var it=EXERCISES[i];
+      if(it.g){ grp=document.createElement("optgroup"); grp.label=it.g; sel.appendChild(grp); }
+      else if(grp){ grp.appendChild(opt(String(it.id), it.id+" · "+it.t)); }
+    }
+  })();
+
+  // Screen checks
+  (function buildScreens(){
+    var wrap=$("screenChecks");
+    for(var i=0;i<SCREENS.length;i++){
+      var s=SCREENS[i];
+      var lbl=document.createElement("label"); lbl.className="check";
+      var cb=document.createElement("input"); cb.type="checkbox"; cb.value=String(s.n); cb.className="screenCb";
+      var body=document.createElement("span"); body.className="c-body";
+      var nm=document.createElement("span"); nm.className="c-name"; nm.textContent=s.name;
+      var ds=document.createElement("span"); ds.className="c-desc"; ds.textContent=s.desc;
+      body.appendChild(nm); body.appendChild(ds); lbl.appendChild(cb); lbl.appendChild(body); wrap.appendChild(lbl);
+    }
+  })();
+
+  /* ---------------- Cert-dependent population ---------------- */
+  function populateDomains(cert, idx){
+    var sel=$("domain"); sel.innerHTML="";
+    for(var i=0;i<cert.domains.length;i++){
+      sel.appendChild(opt(String(i), cert.domains[i][0]+" ("+cert.domains[i][1]+")"));
+    }
+    sel.value = String(typeof idx==="number" ? idx : 0);
+  }
+  function populateFramings(cert, v){
+    var sel=$("framing"); sel.innerHTML="";
+    for(var i=0;i<cert.framings.length;i++){
+      sel.appendChild(opt(cert.framings[i][0], cert.framings[i][1]));
+    }
+    sel.value = v || cert.framings[0][0];
+  }
+  function updateCertChrome(cert){
+    $("eyebrowTag").textContent = cert.short;
+    $("certFull").innerHTML = "<strong>"+escapeHtml(cert.full)+"</strong> — "+escapeHtml(cert.body)+
+      ". Exam framing: "+escapeHtml(cert.examFormat)+".";
+    var art = /^[AEIOU]/i.test(cert.ethicsCode) ? "an" : "a";
+    $("ethicsName").textContent = cert.ethicsCode ? ("Add "+art+" "+cert.ethicsCode+" angle") : "Add a professional-ethics angle";
+    $("catDesc").textContent = "One item in "+cert.examFormat+", with answer rationale.";
+    $("tipDesc").textContent = "A \"think like a "+cert.role+"\" reminder for this domain.";
+  }
+
+  function getCert(){ var r=document.querySelector(".certRadio:checked"); return certById(r?r.value:"cissp"); }
+
+  function setScreens(arr){
+    var cbs=document.querySelectorAll(".screenCb");
+    for(var i=0;i<cbs.length;i++) cbs[i].checked = arr.indexOf(parseInt(cbs[i].value,10))!==-1;
+  }
+  function getScreens(){
+    var out=[], cbs=document.querySelectorAll(".screenCb");
+    for(var i=0;i<cbs.length;i++) if(cbs[i].checked) out.push(parseInt(cbs[i].value,10));
+    out.sort(function(a,b){return a-b;}); return out;
+  }
+
+  /* ---------------- State ---------------- */
+  function applyRecipe(certId, r){
+    var cert=certById(certId);
+    var radio=document.querySelector('.certRadio[value="'+certId+'"]'); if(radio) radio.checked=true;
+    populateDomains(cert, r.d);
+    populateFramings(cert, r.f);
+    updateCertChrome(cert);
+    $("incident").value=r.incident; $("sector").value=r.sector;
+    $("difficulty").value=r.difficulty; $("time").value=r.time;
+    $("deliverable").value=r.deliverable; $("lens").value=r.lens;
+    $("anchor").value=r.anchor; $("mitre").value=r.mitre||"";
+    $("model").value=r.model||"generic"; $("format").value=r.format||"markdown";
+    $("tk_cat").checked=!!r.cat; $("tk_tip").checked=!!r.tip; $("tk_ethics").checked=!!r.ethics;
+    $("tk_rubric").checked=r.rubric!==false; $("tk_key").checked=!!r.key;
+    setScreens(r.screens||[]);
+  }
+
+  function readState(){
+    var cert=getCert();
+    return {
+      cert:cert, domainIndex:parseInt($("domain").value,10)||0, framing:$("framing").value,
+      incident:$("incident").value, sector:$("sector").value, screens:getScreens(),
+      difficulty:$("difficulty").value, time:$("time").value, deliverable:$("deliverable").value,
+      lens:$("lens").value, model:$("model").value, format:$("format").value, anchor:$("anchor").value, mitre:$("mitre").value.trim(),
+      cat:$("tk_cat").checked, tip:$("tk_tip").checked, ethics:$("tk_ethics").checked,
+      rubric:$("tk_rubric").checked, key:$("tk_key").checked
+    };
+  }
+
+  /* ---------------- Recommendations ---------------- */
+  function recFramingFor(cert,di){ var a=REC_FRAMING[cert.id]; return (a&&a[di])?a[di]:cert.framings[0][0]; }
+  function recDeliverableFor(cert,fv){ var m=REC_DELIVERABLE[cert.id]; return (m&&m[fv])?m[fv]:DELIVERABLES[0]; }
+  function recDifficultyFor(cert){ return REC_DIFFICULTY[cert.id]||"Intermediate"; }
+  function recScreensFor(inc){ return (INCIDENT_SCREENS[inc]||[1,3,4]).slice(); }
+  function recAnchorFor(inc){ return INCIDENT_ANCHOR.hasOwnProperty(inc)?INCIDENT_ANCHOR[inc]:""; }
+  function recMitreFor(inc){ return INCIDENT_MITRE[inc]||""; }
+  function anchorLabel(id){ if(!id) return "None (original scenario)"; var ex=exById(parseInt(id,10)); return ex?(ex.id+" \u00b7 "+ex.t):id; }
+  function screensLabel(a){ return a.length?("Screen"+(a.length>1?"s":"")+" "+a.join(", ")):"none"; }
+  function arrEq(a,b){ if(a.length!==b.length) return false; var x=a.slice().sort(),y=b.slice().sort(); for(var i=0;i<x.length;i++) if(x[i]!==y[i]) return false; return true; }
+  function setRecLine(elId,field,text,show){
+    var el=document.getElementById(elId);
+    if(show){ el.innerHTML="";
+      var sp=document.createElement("span"); sp.className="rec-txt"; sp.textContent=text;
+      var b=document.createElement("button"); b.type="button"; b.className="rec-apply"; b.setAttribute("data-rec",field); b.textContent="Apply";
+      el.appendChild(sp); el.appendChild(document.createTextNode(" ")); el.appendChild(b); el.hidden=false;
+    } else { el.hidden=true; el.innerHTML=""; }
+  }
+  function updateRecUI(){
+    var st=readState(), cert=st.cert;
+    var rf=recFramingFor(cert,st.domainIndex);
+    setRecLine("rec_framing","framing","Recommended: "+framingByV(cert,rf)[1], rf!==st.framing);
+    var rd=recDeliverableFor(cert,st.framing);
+    setRecLine("rec_deliverable","deliverable","Recommended: "+rd, rd!==st.deliverable);
+    var rdif=recDifficultyFor(cert);
+    setRecLine("rec_difficulty","difficulty","Recommended: "+rdif, rdif!==st.difficulty);
+    var rs=recScreensFor(st.incident);
+    setRecLine("rec_screens","screens","Recommended: "+screensLabel(rs.slice().sort(function(a,b){return a-b;})), !arrEq(rs,st.screens));
+    var ra=recAnchorFor(st.incident);
+    setRecLine("rec_anchor","anchor","Recommended: "+anchorLabel(ra), ra!==st.anchor);
+    var rm=recMitreFor(st.incident);
+    setRecLine("rec_mitre","mitre","Suggested: "+rm, !!rm && rm!==st.mitre);
+  }
+  function applyRec(field){
+    var cert=getCert(), di=parseInt($("domain").value,10)||0, inc=$("incident").value;
+    if(field==="framing") $("framing").value=recFramingFor(cert,di);
+    else if(field==="deliverable") $("deliverable").value=recDeliverableFor(cert,$("framing").value);
+    else if(field==="difficulty") $("difficulty").value=recDifficultyFor(cert);
+    else if(field==="screens") setScreens(recScreensFor(inc));
+    else if(field==="anchor") $("anchor").value=recAnchorFor(inc);
+    else if(field==="mitre") $("mitre").value=recMitreFor(inc);
+    render(true);
+  }
+  function applyAllRec(){
+    var cert=getCert(), di=parseInt($("domain").value,10)||0, inc=$("incident").value;
+    var fv=recFramingFor(cert,di);
+    $("framing").value=fv;
+    $("deliverable").value=recDeliverableFor(cert,fv);
+    $("difficulty").value=recDifficultyFor(cert);
+    setScreens(recScreensFor(inc));
+    $("anchor").value=recAnchorFor(inc);
+    var rm=recMitreFor(inc); if(rm) $("mitre").value=rm;
+    render(true); announce("Applied recommended settings for "+cert.short+".");
+  }
+
+  /* ---------------- Prompt builder ---------------- */
+  function modelByV(v){ for(var i=0;i<MODELS.length;i++) if(MODELS[i].v===v) return MODELS[i]; return MODELS[0]; }
+  function formatByV(v){ for(var i=0;i<FORMATS.length;i++) if(FORMATS[i].v===v) return FORMATS[i]; return FORMATS[0]; }
+  function updateModelNote(){ var m=modelByV($("model").value); $("modelNote").textContent=m.note; }
+
+  function buildSections(st, cert, dom, fr, fmt){
+    var S=[];
+    S.push({tag:"role", title:"ROLE", lines:[
+      "You are a "+cert.full+" instructor and SOC exercise designer building one hands-on exercise for a security certification course. "+cert.audience
+    ]});
+    S.push({tag:"target_certification", title:"TARGET CERTIFICATION & DOMAIN", lines:[
+      "- Certification: "+cert.full+" ("+cert.body+")",
+      "- Domain: "+dom[0]+" ("+dom[1]+")",
+      "- Center the exercise on what this domain tests, and tie each learning objective back to it."
+    ]});
+    S.push({tag:"framing", title:"FRAMING / COGNITIVE LENS (most important instruction)", lines:["- "+fr[1], "- "+fr[2]]});
+    var soc=["This exercise is delivered inside the four-screen Simulated SOC. Hub: "+HUB_URL];
+    if(cert.socNote) soc.push(cert.socNote);
+    if(st.screens.length){ soc.push("Screens the student will use:");
+      for(var i=0;i<st.screens.length;i++){ var sc=screenByN(st.screens[i]); if(sc) soc.push("  - "+sc.name+" \u2014 "+sc.desc+" ("+sc.url+")"); } }
+    else soc.push("No specific screen was pinned \u2014 choose the screen(s) that best fit the scenario from the four available.");
+    S.push({tag:"soc_context", title:"SOC SIMULATION CONTEXT", lines:soc});
+    var sp=[
+      "- Incident type: "+st.incident, "- Sector context: "+st.sector,
+      "- Difficulty: "+st.difficulty, "- Estimated completion time: "+st.time,
+      "- Primary deliverable the student produces: "+st.deliverable
+    ];
+    if(st.lens!=="None") sp.push("- Multidisciplinary lens: frame the analysis through a "+st.lens+" perspective in addition to the security view.");
+    if(st.mitre) sp.push("- Incorporate these MITRE ATT&CK techniques: "+st.mitre+" (map them in the ATT&CK section).");
+    if(st.anchor){ var ex=exById(parseInt(st.anchor,10));
+      if(ex){ sp.push("- Anchor: build on and adapt existing SOC catalog Exercise "+ex.id+" \u2014 \""+ex.t+"\" (uses Screen(s) "+ex.s.join(", ")+"). Keep continuity with its premise, then re-angle it toward this certification's domain and framing. Catalog: "+STUDENT_URL);
+        if(cert.id==="cissp" && ex.d.indexOf("D"+(st.domainIndex+1))===-1) sp.push("  Note: that exercise usually sits in a different CISSP domain \u2014 deliberately re-angle it toward the selected domain."); } }
+    S.push({tag:"scenario_parameters", title:"SCENARIO PARAMETERS", lines:sp});
+    var wtp=["Write a complete, ready-to-assign exercise in EXACTLY this structure, matching the house style of the Simulated SOC catalog:"];
+    var n=1;
+    wtp.push((n++)+". Title");
+    wtp.push((n++)+". Learning objectives (3\u20135) \u2014 each tied to "+dom[0]);
+    wtp.push((n++)+". Screens used");
+    wtp.push((n++)+". Scenario \u2014 realistic and specific, with a timeline, named/affected assets, and DEFANGED indicators only (e.g. 185.220.101[.]45, hxxps://bad-domain[.]net). No real malware hashes or working exploit detail.");
+    wtp.push((n++)+". Tasks (numbered) \u2014 every task must resolve at the framing defined above");
+    wtp.push((n++)+". MITRE ATT&CK mapping");
+    if(st.rubric) wtp.push((n++)+". Weighted grading rubric \u2014 criteria with point values summing to 100");
+    if(st.cat) wtp.push((n++)+". One practice question in "+cert.examFormat+" \u2014 four options with a rationale for the best answer and each distractor");
+    if(st.tip) wtp.push((n++)+". Exam-tip callout \u2014 a short \"think like a "+cert.role+"\" note connecting the scenario to how this domain is tested on the "+cert.short+" exam");
+    if(st.ethics){ var code=cert.ethicsCode||"professional ethics"; wtp.push((n++)+". Ethics consideration \u2014 a point where the "+code+" applies, framed as a decision the student must reason through"); }
+    if(st.key) wtp.push((n++)+". INSTRUCTOR ANSWER KEY \u2014 a model solution for each task and the rubric, in its own clearly labeled section at the very end so it can be removed before distributing the student copy.");
+    S.push({tag:"what_to_produce", title:"WHAT TO PRODUCE", lines:wtp});
+    S.push({tag:"output_format", title:"OUTPUT FORMAT", lines:[fmt.spec]});
+    var gr=[
+      "- Hold the framing. Keep every task at the altitude defined above; when a technical step is necessary, connect it to the decision, control, or judgment the framing calls for.",
+      "- Use realistic but fictional, defanged artifacts throughout. Nothing operationally harmful; for offensive content, keep it conceptual and defensive in purpose.",
+      "- Match the tone, structure, and rigor of the existing Simulated SOC exercises so this drops cleanly into the catalog."
+    ];
+    if(st.key) gr.push("- Keep the student-facing content and the instructor answer key clearly separated.");
+    S.push({tag:"guardrails", title:"GUARDRAILS", lines:gr});
+    return S;
+  }
+
+  function renderSections(S, mode){
+    var out=[];
+    for(var i=0;i<S.length;i++){
+      var s=S[i];
+      if(mode==="xml"){ out.push("<"+s.tag+">"); for(var j=0;j<s.lines.length;j++) out.push(s.lines[j]); out.push("</"+s.tag+">"); }
+      else { out.push("# "+s.title); for(var j=0;j<s.lines.length;j++) out.push(s.lines[j]); }
+      out.push("");
+    }
+    return out.join("\n").replace(/\s+$/,"");
+  }
+
+  function renderMinimal(st, cert, dom, fr, fmt){
+    var L=[];
+    L.push("Design one hands-on "+cert.full+" exercise for a security-certification course. "+cert.audience);
+    L.push("");
+    L.push("Domain: "+dom[0]+" ("+dom[1]+").");
+    L.push("Framing: "+fr[1]+" \u2014 "+fr[2]);
+    var soc="Delivered in the four-screen Simulated SOC ("+HUB_URL+")";
+    if(st.screens.length){ var names=[]; for(var i=0;i<st.screens.length;i++){ var sc=screenByN(st.screens[i]); if(sc) names.push(sc.name); } soc+="; screens: "+names.join("; "); }
+    soc+=".";
+    if(cert.socNote) soc+=" "+cert.socNote;
+    L.push("SOC context: "+soc);
+    var scen="Scenario: "+st.incident+", "+st.sector+", "+st.difficulty+", ~"+st.time+"; deliverable = "+st.deliverable+".";
+    if(st.lens!=="None") scen+=" Add a "+st.lens+" lens.";
+    if(st.mitre) scen+=" Include MITRE techniques "+st.mitre+".";
+    if(st.anchor){ var ex=exById(parseInt(st.anchor,10)); if(ex) scen+=" Build on SOC catalog Exercise "+ex.id+" (\""+ex.t+"\"), re-angled to this domain/framing."; }
+    L.push(scen);
+    L.push("");
+    var parts=["a title","3\u20135 learning objectives tied to the domain","screens used","a realistic scenario with a timeline, named assets, and defanged indicators only (e.g. 185.220.101[.]45)","numbered tasks that each resolve at the framing above","MITRE ATT&CK mapping"];
+    if(st.rubric) parts.push("a weighted rubric summing to 100");
+    if(st.cat) parts.push("one "+cert.examFormat+" practice question with rationale");
+    if(st.tip) parts.push("a \"think like a "+cert.role+"\" exam-tip callout");
+    if(st.ethics) parts.push("a "+(cert.ethicsCode||"professional ethics")+" consideration");
+    if(st.key) parts.push("a clearly separated instructor answer key at the end");
+    L.push("Produce a complete, ready-to-assign exercise containing: "+parts.join("; ")+".");
+    L.push("");
+    L.push("Format: "+fmt.spec);
+    L.push("Constraints: hold the framing altitude; use fictional, defanged artifacts only; match the Simulated SOC house style. Keep your reasoning internal and return only the finished exercise.");
+    return L.join("\n");
+  }
+
+  function buildPrompt(){
+    var st=readState(), cert=st.cert;
+    var dom=cert.domains[st.domainIndex]||cert.domains[0];
+    var fr=framingByV(cert,st.framing);
+    var model=modelByV(st.model), fmt=formatByV(st.format);
+    if(model.scaffold==="minimal") return renderMinimal(st, cert, dom, fr, fmt);
+    return renderSections(buildSections(st, cert, dom, fr, fmt), model.scaffold);
+  }
+
+  /* ---------------- Render ---------------- */
+  var out=$("promptOut"), cc=$("charCount"), flashTimer=null;
+  function render(flash){
+    var txt=buildPrompt();
+    out.value=txt; cc.textContent=txt.length.toLocaleString()+" chars";
+    var cert=getCert(); var fr=framingByV(cert,$("framing").value);
+    $("altWhy").innerHTML="<strong>Why it matters:</strong> the framing is what keeps the exercise at the right altitude for "+escapeHtml(cert.short)+
+      ". It injects instruction so the AI writes tasks that resolve as <em>"+escapeHtml(fr[1].split(" (")[0].toLowerCase())+"</em>.";
+    updateRecUI();
+    updateModelNote();
+    if(flash){ out.classList.remove("flash"); void out.offsetWidth; out.classList.add("flash");
+      if(flashTimer) clearTimeout(flashTimer); flashTimer=setTimeout(function(){out.classList.remove("flash");},520); }
+  }
+
+  /* ---------------- Events ---------------- */
+  $("builder").addEventListener("change", function(e){
+    if(e.target && e.target.className==="certRadio"){
+      var cert=certById(e.target.value);
+      populateDomains(cert,0);
+      var fv=recFramingFor(cert,0);
+      populateFramings(cert, fv);
+      $("deliverable").value=recDeliverableFor(cert,fv);
+      $("difficulty").value=recDifficultyFor(cert);
+      updateCertChrome(cert);
+    }
+    render(true);
+  });
+  $("builder").addEventListener("input", function(e){ if(e.target && e.target.id==="mitre") render(true); });
+
+  // Copy
+  var copyBtn=$("copyBtn"), liveMsg=$("liveMsg");
+  function announce(m){ liveMsg.textContent=m; }
+  copyBtn.addEventListener("click", function(){
+    var text=out.value;
+    function ok(){ copyBtn.textContent="Copied ✓"; copyBtn.classList.add("btn-copied");
+      announce("Prompt copied — paste it into your AI of choice.");
+      setTimeout(function(){copyBtn.textContent="Copy prompt"; copyBtn.classList.remove("btn-copied");},2200); }
+    function fb(){ out.focus(); out.select(); try{ document.execCommand("copy"); ok(); }
+      catch(e){ announce("Couldn't copy automatically — the prompt is selected, press Ctrl/Cmd+C."); } }
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok,fb);
+    else fb();
+  });
+
+  // Reset
+  $("resetBtn").addEventListener("click", function(){ applyRecipe(RECIPES[0].cert, RECIPES[0]); render(true); announce("Reset to the “"+RECIPES[0].label+"” recipe."); });
+
+  $("builder").addEventListener("click", function(e){ var b=e.target.closest(".rec-apply"); if(b) applyRec(b.getAttribute("data-rec")); });
+  $("applyAllRec").addEventListener("click", applyAllRec);
+
+  /* ---------------- Presets ---------------- */
+  function randomPick(a){ return a[Math.floor(Math.random()*a.length)]; }
+  (function buildChips(){
+    var row=$("presetRow");
+    for(var i=0;i<RECIPES.length;i++){
+      var b=document.createElement("button"); b.type="button"; b.className="chip";
+      b.setAttribute("data-recipe",String(i)); b.textContent=RECIPES[i].label; row.appendChild(b);
+    }
+    var r=document.createElement("button"); r.type="button"; r.className="chip rnd";
+    r.setAttribute("data-preset","random"); r.textContent="\ud83c\udfb2 Surprise me"; row.appendChild(r);
+  })();
+  $("presetRow").addEventListener("click", function(e){
+    var btn=e.target.closest("[data-recipe],[data-preset]"); if(!btn) return;
+    if(btn.getAttribute("data-preset")==="random"){
+      var cert=randomPick(CERTS);
+      var exPool=[]; for(var i=0;i<EXERCISES.length;i++) if(EXERCISES[i].id) exPool.push(EXERCISES[i]);
+      var ex=randomPick(exPool);
+      applyRecipe(cert.id, {
+        d:Math.floor(Math.random()*cert.domains.length), f:randomPick(cert.framings)[0],
+        incident:randomPick(INCIDENTS), sector:randomPick(SECTORS), screens:ex.s.slice(),
+        difficulty:randomPick(DIFFICULTY), time:randomPick(TIMES), deliverable:randomPick(DELIVERABLES),
+        lens:randomPick(LENSES), anchor:String(ex.id), mitre:"",
+        cat:Math.random()<.5, tip:true, ethics:(!!cert.ethicsCode)&&Math.random()<.4, rubric:true, key:true,
+        format:randomPick(["markdown","markdown","html_module","canvas_html"])
+      });
+      render(true); announce("Randomized across "+cert.short+" — a fresh idea to riff on."); return;
+    }
+    var idx=parseInt(btn.getAttribute("data-recipe"),10); var rc=RECIPES[idx]; if(!rc) return;
+    applyRecipe(rc.cert, rc); render(true);
+    announce("Loaded the “"+rc.label+"” recipe. Tweak anything, then copy.");
+  });
+
+  /* ---------------- Theme ---------------- */
+  var THEME_KEY="cert-soc-theme";
+  var tBtn=$("themeToggle"), tGlyph=$("themeGlyph"), tLabel=$("themeLabel");
+  function effectiveTheme(){ var f=document.documentElement.getAttribute("data-theme"); if(f) return f;
+    return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"; }
+  function paintToggle(){ var t=effectiveTheme();
+    if(t==="dark"){ tGlyph.textContent="☀"; tLabel.textContent="Light"; tBtn.setAttribute("aria-pressed","true"); }
+    else { tGlyph.textContent="☾"; tLabel.textContent="Dark"; tBtn.setAttribute("aria-pressed","false"); } }
+  (function initTheme(){ var s=null; try{ s=localStorage.getItem(THEME_KEY); }catch(e){}
+    if(s==="dark"||s==="light") document.documentElement.setAttribute("data-theme",s); paintToggle(); })();
+  tBtn.addEventListener("click", function(){ var next=effectiveTheme()==="dark"?"light":"dark";
+    document.documentElement.setAttribute("data-theme",next);
+    try{ localStorage.setItem(THEME_KEY,next); }catch(e){} paintToggle(); });
+  if(window.matchMedia){ var mq=window.matchMedia("(prefers-color-scheme: dark)");
+    if(mq.addEventListener) mq.addEventListener("change",paintToggle); else if(mq.addListener) mq.addListener(paintToggle); }
+
+  /* ---------------- Init ---------------- */
+  applyRecipe(RECIPES[0].cert, RECIPES[0]);
+  render(false);
+})();
+</script>
+</body>
+</html>
