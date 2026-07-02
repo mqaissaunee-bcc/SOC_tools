@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOC Exercise 8B — Reading the Exfiltration: Foundational Security Concepts (Security+ SY0-701, Domain 1.0)</title>
+<meta name="description" content="A foundational, scenario-driven Simulated SOC exercise for CompTIA Security+ (SY0-701) Domain 1.0. Students map a Finance/PCI data-exfiltration incident to the CIA triad, AAA, Zero Trust, and defense-in-depth, then re-read it through a criminal-justice evidentiary lens.">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --surface: #ffffff;
+    --surface-2: #f6f8fb;
+    --ink: #182031;
+    --muted: #556072;
+    --border: #d5dce6;
+    --accent: #0e7c86;        /* SOC / SIEM teal */
+    --accent-ink: #085660;
+    --pci: #9a5b06;           /* Finance / PCI amber */
+    --pci-bg: #fdf2e0;
+    --cj: #6d28d9;            /* Criminal Justice violet */
+    --cj-bg: #f2ecfd;
+    --danger: #b0201d;
+    --danger-bg: #fbeceb;
+    --ok: #1d7a3e;
+    --ok-bg: #e8f5ec;
+    --mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(20,30,48,.06), 0 6px 20px rgba(20,30,48,.06);
+    --maxw: 62rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c111d;
+      --surface: #141b2b;
+      --surface-2: #0f1626;
+      --ink: #e7ecf4;
+      --muted: #9fabbe;
+      --border: #27324a;
+      --accent: #37c8b8;
+      --accent-ink: #7fe4d8;
+      --pci: #f2b544;
+      --pci-bg: #2a2010;
+      --cj: #a98cf6;
+      --cj-bg: #1e1830;
+      --danger: #f2837f;
+      --danger-bg: #2a1414;
+      --ok: #59c47c;
+      --ok-bg: #10251a;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    font-size: clamp(1rem, 0.96rem + 0.2vw, 1.06rem);
+  }
+
+  .skip-link {
+    position: absolute;
+    left: -999px;
+    top: 0;
+    background: var(--accent);
+    color: #fff;
+    padding: .7rem 1rem;
+    border-radius: 0 0 var(--radius) 0;
+    z-index: 100;
+    font-weight: 600;
+  }
+  .skip-link:focus { left: 0; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 clamp(1rem, 3vw, 2rem); }
+
+  a { color: var(--accent-ink); }
+  a:focus-visible, button:focus-visible, summary:focus-visible, select:focus-visible, input:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* ---------- Header ---------- */
+  header.masthead {
+    background: linear-gradient(160deg, var(--surface) 0%, var(--surface-2) 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .8rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 1.6rem 0 .4rem;
+    display: flex; align-items: center; gap: .55rem; flex-wrap: wrap;
+  }
+  .eyebrow .dot { width: .55rem; height: .55rem; border-radius: 50%; background: var(--accent); display: inline-block; }
+  h1 {
+    font-size: clamp(1.5rem, 1.1rem + 2.4vw, 2.4rem);
+    line-height: 1.15;
+    margin: .1rem 0 .5rem;
+    letter-spacing: -0.01em;
+  }
+  .lede { color: var(--muted); max-width: 52ch; margin: 0 0 1.2rem; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; padding-bottom: 1.6rem; }
+  .chip {
+    font-family: var(--mono);
+    font-size: .78rem;
+    padding: .32rem .6rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .chip.key { border-color: var(--accent); color: var(--accent-ink); }
+  .chip.pci { border-color: var(--pci); color: var(--pci); background: var(--pci-bg); }
+
+  /* ---------- Toolbar ---------- */
+  .toolbar {
+    position: sticky; top: 0; z-index: 40;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+    padding: .55rem 0;
+  }
+  .toolbar .wrap { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+  .toolbar .label { font-size: .82rem; color: var(--muted); margin-right: auto; font-family: var(--mono); }
+
+  button.btn {
+    font-family: var(--sans);
+    font-size: .9rem;
+    font-weight: 600;
+    min-height: 44px;
+    padding: .5rem .9rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button.btn:hover { border-color: var(--accent); }
+  button.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.btn.primary:hover { filter: brightness(1.06); }
+
+  /* ---------- Sections ---------- */
+  main { padding: 1.4rem 0 3rem; }
+  section { margin: 1.6rem 0; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.2rem clamp(1rem, 2.4vw, 1.6rem);
+  }
+  .card.accented { border-left: 5px solid var(--accent); }
+
+  h2 {
+    font-size: clamp(1.2rem, 1rem + 1vw, 1.55rem);
+    margin: .1rem 0 .3rem;
+    display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
+  }
+  h2 .num {
+    font-family: var(--mono);
+    font-size: .8rem;
+    color: var(--accent-ink);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: .1rem .4rem;
+    letter-spacing: .06em;
+  }
+  h3 { font-size: 1.05rem; margin: 1.1rem 0 .3rem; }
+  p { margin: .5rem 0; }
+
+  ul, ol { margin: .5rem 0; padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  li::marker { color: var(--accent); }
+
+  .mono, code { font-family: var(--mono); font-size: .92em; }
+  code {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: .05rem .35rem;
+    word-break: break-word;
+  }
+
+  /* Screens list */
+  .screens { list-style: none; padding: 0; display: grid; gap: .7rem; }
+  .screens li {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .8rem 1rem;
+    background: var(--surface-2);
+  }
+  .screens .sname { font-weight: 700; }
+  .screens .sname .tag {
+    font-family: var(--mono); font-size: .72rem; color: var(--accent-ink);
+    border: 1px solid var(--accent); border-radius: 5px; padding: .05rem .35rem; margin-left: .4rem;
+  }
+  .ext { font-size: .74rem; color: var(--muted); font-family: var(--mono); }
+
+  /* Scenario intel box */
+  .intel {
+    background: var(--surface-2);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    font-family: var(--mono);
+    font-size: .86rem;
+    overflow-x: auto;
+  }
+  .intel dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem .9rem; margin: 0; }
+  .intel dt { color: var(--muted); }
+  .intel dd { margin: 0; word-break: break-word; }
+  .defang-note {
+    font-family: var(--mono); font-size: .76rem; color: var(--pci);
+    background: var(--pci-bg); border: 1px solid var(--pci);
+    border-radius: 8px; padding: .5rem .7rem; margin-top: .8rem;
+  }
+
+  .timeline { list-style: none; padding: 0; margin: .6rem 0; }
+  .timeline li { display: grid; grid-template-columns: 5.5rem 1fr; gap: .7rem; padding: .35rem 0; border-bottom: 1px solid var(--border); }
+  .timeline li:last-child { border-bottom: 0; }
+  .timeline .t { font-family: var(--mono); color: var(--accent-ink); font-size: .85rem; }
+
+  /* Tasks */
+  details.block {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: .7rem 0;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  details.block > summary {
+    cursor: pointer;
+    padding: .9rem 1rem;
+    font-weight: 700;
+    display: flex; align-items: center; gap: .6rem;
+    list-style: none;
+    min-height: 44px;
+  }
+  details.block > summary::-webkit-details-marker { display: none; }
+  details.block > summary .caret { transition: transform .2s ease; color: var(--accent); font-family: var(--mono); }
+  details.block[open] > summary .caret { transform: rotate(90deg); }
+  details.block > summary .tnum {
+    font-family: var(--mono); font-size: .78rem; background: var(--accent); color: #fff;
+    border-radius: 6px; padding: .1rem .45rem; flex: none;
+  }
+  .block .body { padding: 0 1rem 1rem; border-top: 1px solid var(--border); }
+
+  .apply {
+    margin: .8rem 0;
+    border-left: 4px solid var(--accent);
+    background: var(--surface-2);
+    border-radius: 0 8px 8px 0;
+    padding: .6rem .9rem;
+  }
+  .apply .k { font-family: var(--mono); font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-ink); }
+
+  .cj-note {
+    margin: .8rem 0;
+    border-left: 4px solid var(--cj);
+    background: var(--cj-bg);
+    border-radius: 0 8px 8px 0;
+    padding: .6rem .9rem;
+  }
+  .cj-note .k { font-family: var(--mono); font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; color: var(--cj); }
+
+  /* MITRE */
+  .mitre { display: grid; gap: .8rem; }
+  .mitre .row {
+    border: 1px solid var(--border); border-radius: 10px; padding: .9rem 1rem; background: var(--surface-2);
+  }
+  .mitre .tid { font-family: var(--mono); font-weight: 700; color: var(--accent-ink); }
+
+  /* Rubric table */
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  caption { text-align: left; color: var(--muted); font-size: .85rem; margin-bottom: .5rem; }
+  th, td { text-align: left; padding: .65rem .7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  td.pts, th.pts { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  tfoot td { font-weight: 700; border-top: 2px solid var(--accent); border-bottom: 0; }
+
+  /* Practice question */
+  fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin: 1rem 0; }
+  legend { font-weight: 700; padding: 0 .4rem; }
+  .opt { display: flex; gap: .6rem; align-items: flex-start; padding: .55rem .6rem; border-radius: 8px; border: 1px solid transparent; }
+  .opt:hover { background: var(--surface-2); }
+  .opt input { margin-top: .35rem; min-width: 20px; min-height: 20px; }
+  .opt label { cursor: pointer; }
+  .rationale { display: none; margin-top: .6rem; padding: .7rem .9rem; border-radius: 8px; font-size: .92rem; }
+  .rationale.show { display: block; }
+  .rationale.correct { background: var(--ok-bg); border: 1px solid var(--ok); }
+  .rationale.wrong { background: var(--danger-bg); border: 1px solid var(--danger); }
+  .verdict { font-weight: 700; }
+  .verdict .mk { font-family: var(--mono); margin-right: .35rem; }
+
+  /* PBQ */
+  .pbq-row { display: grid; grid-template-columns: 1fr; gap: .5rem; padding: .7rem 0; border-bottom: 1px solid var(--border); }
+  @media (min-width: 640px) { .pbq-row { grid-template-columns: 1fr 15rem; align-items: center; } }
+  .pbq-row:last-of-type { border-bottom: 0; }
+  .pbq-row .ev { font-size: .95rem; }
+  .pbq-row select {
+    font-family: var(--sans); font-size: .9rem; min-height: 44px; width: 100%;
+    padding: .45rem .6rem; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink);
+  }
+  .pbq-row .fb { font-family: var(--mono); font-size: .82rem; margin-top: .2rem; }
+  .pbq-row .fb.ok { color: var(--ok); }
+  .pbq-row .fb.no { color: var(--danger); }
+
+  .live { margin-top: .8rem; font-weight: 700; }
+
+  /* Callouts */
+  .callout { border-radius: 10px; padding: 1rem 1.1rem; border: 1px solid var(--border); }
+  .callout.exam { border-left: 5px solid var(--pci); background: var(--pci-bg); }
+  .callout.ethics { border-left: 5px solid var(--cj); background: var(--cj-bg); }
+  .callout h2 { margin-top: 0; }
+  .callout .tagword { font-family: var(--mono); font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; }
+  .callout.exam .tagword { color: var(--pci); }
+  .callout.ethics .tagword { color: var(--cj); }
+
+  /* Instructor key */
+  details.instructor {
+    margin-top: 2.2rem;
+    border: 2px dashed var(--danger);
+    border-radius: var(--radius);
+    background: var(--danger-bg);
+  }
+  details.instructor > summary {
+    cursor: pointer; padding: 1rem 1.1rem; font-weight: 800; color: var(--danger);
+    list-style: none; min-height: 44px; display: flex; align-items: center; gap: .6rem;
+  }
+  details.instructor > summary::-webkit-details-marker { display: none; }
+  details.instructor .ikey-body { padding: 0 1.1rem 1.4rem; }
+  details.instructor .warn {
+    font-family: var(--mono); font-size: .82rem; color: var(--danger);
+    background: var(--surface); border: 1px solid var(--danger); border-radius: 8px;
+    padding: .6rem .8rem; margin: .6rem 0 1rem;
+  }
+  details.instructor h3 { color: var(--ink); border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+  .model { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .8rem 1rem; }
+
+  footer.foot {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: .85rem;
+    text-align: center;
+    padding: 1.4rem 1rem 2rem;
+  }
+  footer.foot .program { color: var(--accent-ink); font-weight: 600; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow"><span class="dot" aria-hidden="true"></span> Simulated SOC · Exercise 8B · Concept Application</p>
+    <h1>Reading the Exfiltration: Foundational Security Concepts on a PCI Breach</h1>
+    <p class="lede">A batch account moved 1.8&nbsp;GB of cardholder data out of the card data environment at 2&nbsp;a.m. Your job is not to catch the attacker&nbsp;— it is to name the security concepts the incident exercises, then re-read the same evidence as a potential crime.</p>
+    <div class="chips" role="list" aria-label="Exercise parameters">
+      <span class="chip key" role="listitem">CompTIA Security+ SY0-701</span>
+      <span class="chip key" role="listitem">Domain 1.0 · General Security Concepts</span>
+      <span class="chip" role="listitem">Foundational</span>
+      <span class="chip" role="listitem">~35 min</span>
+      <span class="chip pci" role="listitem">Finance / PCI</span>
+      <span class="chip" role="listitem">Data exfiltration</span>
+      <span class="chip" role="listitem">Lens: Criminal Justice</span>
+    </div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="label" aria-hidden="true">// exercise controls</span>
+    <button type="button" class="btn" id="expandAll">Expand all tasks</button>
+    <button type="button" class="btn" id="collapseAll">Collapse all tasks</button>
+    <button type="button" class="btn" id="resetPractice">Reset practice question</button>
+  </div>
+</div>
+
+<main id="main" class="wrap">
+
+  <!-- 2. LEARNING OBJECTIVES -->
+  <section class="card accented" aria-labelledby="lo-h">
+    <h2 id="lo-h"><span class="num">01</span> Learning objectives</h2>
+    <p>By the end of this exercise, a student pursuing Security+ (SY0-701) will be able to&nbsp;— every objective tied to <strong>Domain 1.0 General Security Concepts</strong>:</p>
+    <ul>
+      <li><strong>Map a disclosure event to the CIA triad.</strong> Given exfiltrated cardholder data, identify which element of confidentiality, integrity, and availability is directly violated and justify the mapping. <span class="mono">(1.2 — fundamental concepts)</span></li>
+      <li><strong>Separate authentication from authorization.</strong> Explain how a valid credential can still represent an authorization and accounting (AAA) failure, and identify the record that provides non-repudiation. <span class="mono">(1.2 — AAA, non-repudiation)</span></li>
+      <li><strong>Apply Zero Trust to an egress decision.</strong> Describe how policy-driven access control and least privilege at a policy enforcement point would change the outcome. <span class="mono">(1.2 — Zero Trust)</span></li>
+      <li><strong>Classify layered controls by category and type.</strong> Sort the controls that touched the incident into preventive, detective, and corrective, and explain the defense-in-depth gap. <span class="mono">(1.1 — security controls)</span></li>
+      <li><strong>Re-read the incident as evidence.</strong> Explain how the same foundational concepts (non-repudiation, integrity, logging) support evidentiary standards when an incident may also be a crime. <span class="mono">(1.2 — applied through a criminal-justice lens)</span></li>
+    </ul>
+  </section>
+
+  <!-- 3. SCREENS USED -->
+  <section class="card" aria-labelledby="sc-h">
+    <h2 id="sc-h"><span class="num">02</span> Screens used</h2>
+    <p>Work directly from the live dashboards in the four-screen Simulated SOC. Interpret the real panel data — do not rely on this brief alone.</p>
+    <ul class="screens">
+      <li>
+        <div class="sname">Screen 1 — SIEM Dashboard <span class="tag">alerts</span></div>
+        <p>Alert queue, severity filters, MITRE ATT&amp;CK heatmap, alert trends, SOC metrics (MTTD / MTTR / false-positive rate).</p>
+        <a href="https://mqaissaunee-bcc.github.io/SOC/soc-screen1-siem-dashboard-fixed.html" target="_blank" rel="noopener">Open Screen 1 <span class="ext">↗ opens in a new tab</span></a>
+      </li>
+      <li>
+        <div class="sname">Screen 3 — Incident Response <span class="tag">case</span></div>
+        <p>Case management, IOC details, affected assets, response actions, playbooks, and sector tags (Healthcare/PHI, <strong>Finance/PCI</strong>, OT).</p>
+        <a href="https://mqaissaunee-bcc.github.io/SOC/soc-screen3-incident-response-fixed.html" target="_blank" rel="noopener">Open Screen 3 <span class="ext">↗ opens in a new tab</span></a>
+      </li>
+      <li>
+        <div class="sname">Screen 4 — Threat Intel &amp; Endpoints <span class="tag">intel</span></div>
+        <p>Threat feeds, endpoint status (incl. medical &amp; OT/SCADA assets), vulnerability management, compliance scores.</p>
+        <a href="https://mqaissaunee-bcc.github.io/SOC/soc-screen4-threat-intel-fixed.html" target="_blank" rel="noopener">Open Screen 4 <span class="ext">↗ opens in a new tab</span></a>
+      </li>
+    </ul>
+    <p class="mono" style="font-size:.8rem;color:var(--muted);margin-top:.8rem;">Continuity note: this exercise builds on catalog Exercise 8 — <em>Data Exfiltration Detection</em>. The premise (an off-hours transfer from a data server to an external host) is the same; the work here is re-angled from detection toward <strong>concept application</strong>.</p>
+  </section>
+
+  <!-- 4. SCENARIO -->
+  <section class="card accented" aria-labelledby="scn-h">
+    <h2 id="scn-h"><span class="num">03</span> Scenario</h2>
+    <p><strong>Organization:</strong> Garden State Federal Credit Union (GSFCU), a fictional regional financial institution. It stores and processes payment card data, so its cardholder data environment (CDE) is in scope for <strong>PCI DSS</strong>.</p>
+    <p>At <strong>07:50 EST</strong> you begin your Tier&nbsp;1 shift. Overnight, a data-loss-prevention (DLP) rule fired on the SIEM. Tier&nbsp;1 escalated a case to Incident Response tagged <span class="chip pci">Finance/PCI</span>. Nothing about the account looks broken — the credentials were valid and the session succeeded. That is exactly what makes it worth reading carefully.</p>
+
+    <h3>Timeline (all times EST)</h3>
+    <ul class="timeline">
+      <li><span class="t">02:11</span><span>Service account <code>svc_ecom_sync</code> authenticates to <code>CARDDB-PROD-01</code> from jump host <code>JUMP-DMZ-02</code>. Valid credentials. No interactive human session logged.</span></li>
+      <li><span class="t">02:14</span><span>Outbound HTTPS session opens from <code>CARDDB-PROD-01</code> to external host <code>45.133.216[.]78</code> on port 443 — a destination outside the CDE and outside any allow-list.</span></li>
+      <li><span class="t">02:29</span><span>SIEM DLP rule <em>"PAN pattern egress"</em> triggers (Screen 1), severity <strong>High</strong>. The transfer is <em>alerted</em> but not blocked.</span></li>
+      <li><span class="t">02:41</span><span>A second channel opens: repeated HTTPS <code>POST</code> requests to the web service <code>hxxps://vault-transfer[.]io/u/9f3a</code>.</span></li>
+      <li><span class="t">03:02</span><span>Sessions close. Approximately <strong>1.8&nbsp;GB</strong> egressed across the two channels.</span></li>
+      <li><span class="t">07:50</span><span>You acknowledge the alert; case opened on Screen 3 with sector tag <strong>Finance/PCI</strong>. Affected asset: the cardholder database.</span></li>
+    </ul>
+
+    <h3>Indicators (defanged — training only)</h3>
+    <div class="intel">
+      <dl>
+        <dt>Affected asset</dt><dd>CARDDB-PROD-01 (cardholder database, internal 10.20.30[.]15)</dd>
+        <dt>Account used</dt><dd>svc_ecom_sync (batch / non-interactive service account)</dd>
+        <dt>Pivot host</dt><dd>JUMP-DMZ-02</dd>
+        <dt>Destination A</dt><dd>45.133.216[.]78 : 443 (unlisted VPS)</dd>
+        <dt>Destination B</dt><dd>hxxps://vault-transfer[.]io/u/9f3a (file-transfer web service)</dd>
+        <dt>Related feed hit</dt><dd>hxxps://card-verify-portal[.]net (Screen 4 threat feed)</dd>
+        <dt>Data at risk</dt><dd>Primary account numbers (PAN), cardholder names, expiration dates</dd>
+        <dt>Volume / window</dt><dd>~1.8 GB, 02:14–03:02 EST (outside business hours)</dd>
+        <dt>Malware hash</dt><dd>none validated — no host malware confirmed in this scenario</dd>
+      </dl>
+      <p class="defang-note">⚠ All indicators are fictional and defanged. Brackets (<code>[.]</code>) and <code>hxxps</code> are intentional so nothing here resolves or executes. Do not de-fang or visit them.</p>
+    </div>
+  </section>
+
+  <!-- 5. TASKS -->
+  <section aria-labelledby="tk-h">
+    <div class="card" style="margin-bottom:.8rem;">
+      <h2 id="tk-h"><span class="num">04</span> Tasks</h2>
+      <p>Six tasks. Each one ends by asking you to <strong>name a foundational concept and defend the mapping</strong> — that is the skill Domain 1.0 tests. Tasks&nbsp;5 and 6 add the criminal-justice lens. Your primary deliverable is the <strong>technical analysis report</strong> assembled in Task&nbsp;6.</p>
+    </div>
+
+    <details class="block" open>
+      <summary><span class="caret" aria-hidden="true">▶</span><span class="tnum">T1</span> Confirm the alert and map it to the CIA triad</summary>
+      <div class="body">
+        <p>On <strong>Screen 1 (SIEM)</strong>, filter to High-severity alerts and locate the DLP "PAN pattern egress" event. Note its severity, timestamp, and the affected asset. Confirm it matches the case on <strong>Screen 3</strong>.</p>
+        <div class="apply">
+          <div class="k">Resolve at the framing</div>
+          <p>State which element of the <strong>CIA triad</strong> the exfiltration <em>directly</em> violates, and which one or two elements are <em>not</em> primarily affected. Write two sentences: the mapping, and the reason (what actually happened to the data?).</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="block">
+      <summary><span class="caret" aria-hidden="true">▶</span><span class="tnum">T2</span> Trace the access path against AAA</summary>
+      <div class="body">
+        <p>Open the case on <strong>Screen 3 (Incident Response)</strong>. Review the IOC details and affected assets, and note that <code>svc_ecom_sync</code> used valid credentials with no interactive session.</p>
+        <div class="apply">
+          <div class="k">Resolve at the framing</div>
+          <p>Break the event into the three legs of <strong>AAA</strong>. Did <em>authentication</em> succeed or fail? Was the <em>authorization</em> appropriate for a batch account reaching the public internet at 2&nbsp;a.m.? Which record provides <em>accounting</em> and gives you <strong>non-repudiation</strong> that this account performed the transfer?</p>
+        </div>
+        <div class="cj-note">
+          <div class="k">Criminal-justice lens</div>
+          <p>"Valid credentials" is not the same as "the account owner did it." Note the distinction now — you will need it in Task&nbsp;5 and in the ethics decision.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="block">
+      <summary><span class="caret" aria-hidden="true">▶</span><span class="tnum">T3</span> Apply Zero Trust to the egress</summary>
+      <div class="body">
+        <p>The account authenticated successfully, then behaved in a way no batch job should. Using what you see on Screens&nbsp;1 and 3, reason about the egress decision.</p>
+        <div class="apply">
+          <div class="k">Resolve at the framing</div>
+          <p>Explain how two <strong>Zero Trust</strong> ideas — <em>least privilege</em> and <em>policy-driven access control</em> — would have changed the outcome. Then name one control you would place at the <strong>policy enforcement point</strong> so that a successful login alone is never enough to reach <code>45.133.216[.]78</code>.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="block">
+      <summary><span class="caret" aria-hidden="true">▶</span><span class="tnum">T4</span> Classify the layered controls (defense-in-depth)</summary>
+      <div class="body">
+        <p>Using <strong>Screen 4 (Threat Intel &amp; Endpoints)</strong> for endpoint/vulnerability/compliance context and <strong>Screen 1</strong> for the MITRE heatmap and detection trail, list the controls that <em>touched</em> this incident: e.g., DLP egress monitoring, endpoint/EDR posture, identity/service-account policy, network egress filtering, SIEM alerting.</p>
+        <div class="apply">
+          <div class="k">Resolve at the framing</div>
+          <p>Classify each control as <strong>preventive</strong>, <strong>detective</strong>, or <strong>corrective</strong> (Domain 1.1). Then state the <strong>defense-in-depth</strong> gap in one sentence: which layer <em>detected</em> the transfer, and which <em>preventive</em> layer was missing that let it complete?</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="block">
+      <summary><span class="caret" aria-hidden="true">▶</span><span class="tnum">T5</span> Re-read the incident as a crime (criminal-justice lens)</summary>
+      <div class="body">
+        <p>Unauthorized removal of cardholder data may be more than an IT incident — it can be a crime and it triggers PCI breach obligations. Shift your reading from "what broke" to "what would this need to be, to hold up outside the SOC?"</p>
+        <div class="cj-note">
+          <div class="k">Resolve at the framing (dual lens)</div>
+          <p>Answer three things: <strong>(a)</strong> What must be preserved so the log evidence remains usable — think <em>chain of custody</em>, timestamp integrity, and <em>who touched what</em>. <strong>(b)</strong> Which security concepts you already applied (non-repudiation from AAA logging; the <em>integrity</em> leg of CIA protecting the logs themselves) support that evidentiary need, and why. <strong>(c)</strong> How the SOC's working standard ("high confidence this account exfiltrated data") differs from a courtroom's standard ("beyond a reasonable doubt"), and what that difference means for how you word your report.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="block">
+      <summary><span class="caret" aria-hidden="true">▶</span><span class="tnum">T6</span> Produce the technical analysis report <span class="chip pci" style="margin-left:.3rem;">deliverable</span></summary>
+      <div class="body">
+        <p>Synthesize Tasks&nbsp;1–5 into a one-page <strong>technical analysis report</strong> a Tier&nbsp;2 lead could act on. Include, in order:</p>
+        <ol>
+          <li><strong>Summary &amp; timeline</strong> — 3–4 lines, defanged indicators only.</li>
+          <li><strong>Affected assets &amp; data at risk</strong> — asset names and the PCI relevance.</li>
+          <li><strong>Concept mapping</strong> — one line each for CIA, AAA, Zero Trust, and defense-in-depth, tied to the evidence.</li>
+          <li><strong>MITRE techniques</strong> — T1048 and T1567, each mapped to a specific line in the timeline.</li>
+          <li><strong>Evidence-preservation note</strong> — the criminal-justice point from Task&nbsp;5, worded so it distinguishes fact from inference.</li>
+        </ol>
+        <div class="apply">
+          <div class="k">Resolve at the framing</div>
+          <p>The report is graded on whether each foundational concept is <em>correctly named and correctly mapped to the evidence</em> — not on volume of prose. Keep it to one page.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- 6. MITRE ATT&CK MAPPING -->
+  <section class="card" aria-labelledby="mt-h">
+    <h2 id="mt-h"><span class="num">05</span> MITRE ATT&amp;CK mapping</h2>
+    <p>Both techniques sit under the <strong>Exfiltration</strong> tactic (TA0010). Map each to a line in the timeline.</p>
+    <div class="mitre">
+      <div class="row">
+        <p><span class="tid">T1048 — Exfiltration Over Alternative Protocol</span></p>
+        <p>Data leaves over a channel other than the normal command-and-control path. In this scenario: the direct HTTPS session at <strong>02:14</strong> from <code>CARDDB-PROD-01</code> to the unlisted VPS <code>45.133.216[.]78:443</code>. Detected by the DLP egress rule on Screen&nbsp;1; ties to the <strong>confidentiality</strong> violation.</p>
+      </div>
+      <div class="row">
+        <p><span class="tid">T1567 — Exfiltration Over Web Service</span></p>
+        <p>Data is pushed to a legitimate-looking web/file-transfer service so it blends with normal HTTPS. In this scenario: the repeated <code>POST</code> requests at <strong>02:41</strong> to <code>hxxps://vault-transfer[.]io/u/9f3a</code>. This is why simple IP block-lists are insufficient — a defense-in-depth point for Task&nbsp;4.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. RUBRIC -->
+  <section class="card" aria-labelledby="rb-h">
+    <h2 id="rb-h"><span class="num">06</span> Weighted grading rubric</h2>
+    <div class="table-wrap">
+      <table>
+        <caption>Points sum to 100. Concept work is graded on correct naming <em>and</em> correct mapping to the evidence.</caption>
+        <thead>
+          <tr><th scope="col">Criterion</th><th scope="col" class="pts">Points</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>T1 — CIA mapping.</strong> Correctly identifies confidentiality as the direct violation and justifies why integrity/availability are not primary.</td><td class="pts">15</td></tr>
+          <tr><td><strong>T2 — AAA analysis.</strong> Separates authentication (succeeded) from authorization (inappropriate) and names the accounting record providing non-repudiation.</td><td class="pts">15</td></tr>
+          <tr><td><strong>T3 — Zero Trust application.</strong> Applies least privilege and policy-driven access control; names one workable policy-enforcement-point control.</td><td class="pts">15</td></tr>
+          <tr><td><strong>T4 — Control classification &amp; DiD gap.</strong> Correctly sorts controls into preventive/detective/corrective and states the missing preventive layer.</td><td class="pts">15</td></tr>
+          <tr><td><strong>T5 — Criminal-justice lens.</strong> Addresses chain of custody / log integrity, links to non-repudiation &amp; CIA-integrity, and contrasts SOC confidence with the legal standard.</td><td class="pts">15</td></tr>
+          <tr><td><strong>T6 — Technical analysis report.</strong> Complete, one page, concepts correctly mapped, both MITRE techniques tied to timeline lines.</td><td class="pts">20</td></tr>
+          <tr><td><strong>Professionalism.</strong> Clear structure; indicators kept defanged; fact separated from inference throughout.</td><td class="pts">5</td></tr>
+        </tbody>
+        <tfoot>
+          <tr><td>Total</td><td class="pts">100</td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- 8. PRACTICE QUESTION -->
+  <section class="card accented" aria-labelledby="pq-h">
+    <h2 id="pq-h"><span class="num">07</span> Practice question</h2>
+
+    <!-- Linear MC -->
+    <fieldset id="mcq">
+      <legend>Part A — Linear multiple choice</legend>
+      <p>Cardholder records were copied from <code>CARDDB-PROD-01</code> to an external host outside the CDE. Considering only the act of copying the data off the server, which element of the CIA triad is <strong>most directly</strong> violated?</p>
+      <div class="opt"><input type="radio" name="mc" id="mcA" value="A"><label for="mcA"><strong>A.</strong> Availability</label></div>
+      <div class="opt"><input type="radio" name="mc" id="mcB" value="B"><label for="mcB"><strong>B.</strong> Confidentiality</label></div>
+      <div class="opt"><input type="radio" name="mc" id="mcC" value="C"><label for="mcC"><strong>C.</strong> Non-repudiation</label></div>
+      <div class="opt"><input type="radio" name="mc" id="mcD" value="D"><label for="mcD"><strong>D.</strong> Integrity</label></div>
+      <div style="margin-top:.7rem;">
+        <button type="button" class="btn primary" id="checkMc">Check answer</button>
+      </div>
+      <div class="rationale" id="mcFeedback" role="status" aria-live="polite"></div>
+    </fieldset>
+
+    <!-- PBQ -->
+    <fieldset id="pbq">
+      <legend>Part B — Performance-based (matching)</legend>
+      <p>For each observation on the left, select the single foundational concept it best illustrates. Each concept is used exactly once.</p>
+
+      <div class="pbq-row">
+        <div class="ev">1. Roughly 1.8&nbsp;GB of PAN data was disclosed to an unauthorized external party.</div>
+        <div>
+          <label class="sr-only" for="p1">Concept for observation 1</label>
+          <select id="p1" data-answer="cia">
+            <option value="">Select a concept…</option>
+            <option value="cia">Confidentiality (CIA triad)</option>
+            <option value="aaa">Authentication vs. authorization (AAA)</option>
+            <option value="zt">Zero Trust / policy-driven access</option>
+            <option value="did">Defense-in-depth / control layering</option>
+            <option value="nr">Non-repudiation</option>
+          </select>
+          <div class="fb" id="fb1" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="pbq-row">
+        <div class="ev">2. The account's credentials were valid, but it was permitted to do far more than its batch job required.</div>
+        <div>
+          <label class="sr-only" for="p2">Concept for observation 2</label>
+          <select id="p2" data-answer="aaa">
+            <option value="">Select a concept…</option>
+            <option value="cia">Confidentiality (CIA triad)</option>
+            <option value="aaa">Authentication vs. authorization (AAA)</option>
+            <option value="zt">Zero Trust / policy-driven access</option>
+            <option value="did">Defense-in-depth / control layering</option>
+            <option value="nr">Non-repudiation</option>
+          </select>
+          <div class="fb" id="fb2" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="pbq-row">
+        <div class="ev">3. No egress policy verified the request before allowing the account to reach the public internet.</div>
+        <div>
+          <label class="sr-only" for="p3">Concept for observation 3</label>
+          <select id="p3" data-answer="zt">
+            <option value="">Select a concept…</option>
+            <option value="cia">Confidentiality (CIA triad)</option>
+            <option value="aaa">Authentication vs. authorization (AAA)</option>
+            <option value="zt">Zero Trust / policy-driven access</option>
+            <option value="did">Defense-in-depth / control layering</option>
+            <option value="nr">Non-repudiation</option>
+          </select>
+          <div class="fb" id="fb3" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="pbq-row">
+        <div class="ev">4. DLP detected the transfer, but nothing blocked it — only one layer engaged.</div>
+        <div>
+          <label class="sr-only" for="p4">Concept for observation 4</label>
+          <select id="p4" data-answer="did">
+            <option value="">Select a concept…</option>
+            <option value="cia">Confidentiality (CIA triad)</option>
+            <option value="aaa">Authentication vs. authorization (AAA)</option>
+            <option value="zt">Zero Trust / policy-driven access</option>
+            <option value="did">Defense-in-depth / control layering</option>
+            <option value="nr">Non-repudiation</option>
+          </select>
+          <div class="fb" id="fb4" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="pbq-row">
+        <div class="ev">5. Signed authentication logs let investigators prove which account performed the transfer.</div>
+        <div>
+          <label class="sr-only" for="p5">Concept for observation 5</label>
+          <select id="p5" data-answer="nr">
+            <option value="">Select a concept…</option>
+            <option value="cia">Confidentiality (CIA triad)</option>
+            <option value="aaa">Authentication vs. authorization (AAA)</option>
+            <option value="zt">Zero Trust / policy-driven access</option>
+            <option value="did">Defense-in-depth / control layering</option>
+            <option value="nr">Non-repudiation</option>
+          </select>
+          <div class="fb" id="fb5" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:.8rem;">
+        <button type="button" class="btn primary" id="checkPbq">Check matches</button>
+      </div>
+      <p class="live" id="pbqScore" role="status" aria-live="polite"></p>
+    </fieldset>
+  </section>
+
+  <!-- 9. EXAM TIP -->
+  <section class="callout exam" aria-labelledby="et-h">
+    <p class="tagword">Think like a security practitioner</p>
+    <h2 id="et-h"><span class="num">08</span> Exam tip</h2>
+    <p>Domain 1.0 rarely asks you to <em>recite</em> a definition. It hands you a short scenario and asks which concept it illustrates — confidentiality vs. integrity, authentication vs. authorization, preventive vs. detective. This exfiltration is the canonical shape of those items: valid login (authentication succeeded) + wrong behavior (authorization/Zero-Trust failure) + data disclosed (confidentiality) + alerted-but-not-blocked (a detective control without its preventive partner). On the exam, read for the <strong>verb</strong> — "copied off," "changed," "made unavailable," "logged in as" — and let it point you to the concept. Practice naming the concept before you read the answer choices.</p>
+  </section>
+
+  <!-- 10. ETHICS -->
+  <section class="callout ethics" aria-labelledby="eth-h">
+    <p class="tagword">A decision you must reason through</p>
+    <h2 id="eth-h"><span class="num">09</span> Ethics consideration</h2>
+    <p>The logs show <code>svc_ecom_sync</code> — but service accounts are often <em>owned</em> by a named administrator, and that person's name is one query away. It is tempting to write "Administrator J. Reyes exfiltrated cardholder data" because it makes the report feel decisive.</p>
+    <p><strong>Reason through the decision:</strong> valid credentials prove the <em>account</em> acted, not that its <em>owner</em> did — the credential could have been stolen or the account abused. Naming an individual as the culprit before investigation confirms it can cause real reputational and legal harm, and it mirrors the criminal-justice principle you applied in Task&nbsp;5: presumption of innocence. Weigh that against a competing duty — under PCI DSS, a suspected cardholder-data breach carries <em>notification</em> obligations you cannot quietly sit on. The professional path is to report <strong>facts and inferences separately</strong> ("the <code>svc_ecom_sync</code> account, owned by J. Reyes, was used to transfer ~1.8&nbsp;GB; ownership does not establish who operated it"), preserve the evidence, and escalate through the proper channel — not to accuse, and not to bury.</p>
+  </section>
+
+  <!-- 11. INSTRUCTOR ANSWER KEY -->
+  <details class="instructor" id="instructorKey">
+    <summary>🔒 INSTRUCTOR ANSWER KEY — click to expand (remove before distributing the student copy)</summary>
+    <div class="ikey-body">
+      <p class="warn">This section is for instructors only. Delete this entire <code>&lt;details class="instructor"&gt;</code> block before sharing the student edition.</p>
+
+      <h3>Task 1 — CIA mapping (model)</h3>
+      <div class="model">
+        <p><strong>Confidentiality</strong> is the element directly violated: PAN data was disclosed to an unauthorized external party. <strong>Integrity</strong> is not primary — nothing indicates the records were altered on the server; copying is not modification. <strong>Availability</strong> is not primary — the data remained accessible internally. Full marks require the confidentiality call <em>and</em> a correct reason for excluding integrity/availability.</p>
+      </div>
+
+      <h3>Task 2 — AAA (model)</h3>
+      <div class="model">
+        <p><strong>Authentication: succeeded</strong> — valid credentials were presented. <strong>Authorization: inappropriate</strong> — a batch/service account had no business reaching an unlisted internet host at 02:00; the permission set was too broad (least-privilege failure). <strong>Accounting/non-repudiation:</strong> the authentication and session logs (tying <code>svc_ecom_sync</code> from <code>JUMP-DMZ-02</code> to the transfer) provide the record. Accept "signed/immutable auth logs" or "SIEM audit trail." Common error: calling this an authentication failure — it is not.</p>
+      </div>
+
+      <h3>Task 3 — Zero Trust (model)</h3>
+      <div class="model">
+        <p><strong>Least privilege:</strong> the account should be scoped to only the internal endpoints its sync job needs — no general egress. <strong>Policy-driven access control:</strong> each request is evaluated against policy (identity + context + destination), so a valid login alone never grants internet egress. <strong>PEP control (any one):</strong> an egress firewall/proxy allow-list keyed to the account; a conditional-access / just-in-time policy that denies non-interactive accounts outbound to non-allow-listed hosts; deny-by-default egress from the CDE. Accept any control that blocks based on context, not just successful authentication.</p>
+      </div>
+
+      <h3>Task 4 — Control classification &amp; DiD gap (model)</h3>
+      <div class="model">
+        <p>Sample classification: DLP egress alert = <strong>detective</strong>; SIEM alerting/monitoring = <strong>detective</strong>; egress firewall allow-list / deny-by-default = <strong>preventive</strong> (was <em>missing/ineffective</em>); least-privilege account scoping = <strong>preventive</strong>; incident-response containment (isolate host, disable account) = <strong>corrective</strong>. <strong>DiD gap:</strong> the detective layer (DLP/SIEM) worked and generated the alert, but the <em>preventive</em> egress-control layer was absent, so detection did not stop completion. Accept reasonable variants; the key insight is detective-fired / preventive-missing.</p>
+      </div>
+
+      <h3>Task 5 — Criminal-justice lens (model)</h3>
+      <div class="model">
+        <p><strong>(a) Preserve:</strong> original logs with intact timestamps, hashed/write-once where possible; document who accessed the evidence and when (chain of custody); avoid altering the affected system before imaging. <strong>(b) Concept links:</strong> non-repudiation (from AAA accounting) is what lets an investigator attribute the action to the account; the <em>integrity</em> leg of CIA protects the logs themselves so the evidence is trustworthy. <strong>(c) Standards:</strong> the SOC acts on "high confidence / preponderance" to contain quickly; a court requires "beyond a reasonable doubt." Practical effect: the report should state facts and clearly label inferences, because language that reads as a conclusion of guilt can undermine both fairness and the case.</p>
+      </div>
+
+      <h3>Task 6 — Technical analysis report (model outline)</h3>
+      <div class="model">
+        <p>A full-credit report includes: (1) 3–4-line summary + timeline with defanged indicators; (2) affected asset <code>CARDDB-PROD-01</code> and PAN/PCI relevance; (3) concept lines — <em>Confidentiality</em> violated (data disclosed), <em>AAA</em> = auth OK / authz failed / logs give non-repudiation, <em>Zero Trust</em> = deny-by-default egress at PEP, <em>DiD</em> = detective fired / preventive missing; (4) <em>T1048</em> → 02:14 VPS transfer, <em>T1567</em> → 02:41 web-service POSTs; (5) evidence-preservation note separating fact from inference. Deduct for missing concept mappings, un-defanged indicators, or accusatory attribution.</p>
+      </div>
+
+      <h3>Practice question — answer key</h3>
+      <div class="model">
+        <p><strong>Part A (MC): correct answer is B — Confidentiality.</strong></p>
+        <ul>
+          <li><strong>A. Availability — incorrect.</strong> The data was copied, not deleted or made inaccessible; internal availability is unchanged.</li>
+          <li><strong>B. Confidentiality — correct.</strong> The defining harm of exfiltration is unauthorized disclosure of protected data.</li>
+          <li><strong>C. Non-repudiation — incorrect.</strong> A valuable supporting concept for attribution, but it is not a leg of the CIA triad and is not what the act of copying violates.</li>
+          <li><strong>D. Integrity — incorrect.</strong> Integrity concerns unauthorized <em>modification</em>; copying does not by itself alter the data.</li>
+        </ul>
+        <p><strong>Part B (PBQ): 1&nbsp;→&nbsp;Confidentiality · 2&nbsp;→&nbsp;Authentication vs. authorization (AAA) · 3&nbsp;→&nbsp;Zero Trust / policy-driven access · 4&nbsp;→&nbsp;Defense-in-depth / control layering · 5&nbsp;→&nbsp;Non-repudiation.</strong></p>
+      </div>
+
+      <h3>Facilitation notes</h3>
+      <div class="model">
+        <p>Timing: ~5 min setup, ~22 min Tasks 1–5, ~8 min report. If run as a group, debrief on the Task-4 "detective fired / preventive missing" pattern and the Task-5 standard-of-proof contrast — these are the two ideas students most often under-develop. The ethics decision pairs well with a 5-minute discussion on why "the logs say who" is not "we know who."</p>
+      </div>
+    </div>
+  </details>
+
+</main>
+
+<footer class="foot">
+  <p>Simulated SOC · Exercise 8B · <span class="program">CompTIA Security+ (SY0-701) — Domain 1.0</span></p>
+  <p>Built for the Cybersecurity program · Brookdale Community College · 2026 · All indicators fictional and defanged</p>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "soc-secplus-d1-exfil-v1";
+
+  function saveState(state) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { /* fail silently */ }
+  }
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  var state = loadState();
+
+  var taskBlocks = Array.prototype.slice.call(document.querySelectorAll("details.block"));
+
+  // ---- Expand / collapse all (student tasks only; never the instructor key) ----
+  var expandBtn = document.getElementById("expandAll");
+  var collapseBtn = document.getElementById("collapseAll");
+
+  function setAll(open) {
+    taskBlocks.forEach(function (d, i) { d.open = open; });
+    persistOpenState();
+  }
+  if (expandBtn) expandBtn.addEventListener("click", function () { setAll(true); });
+  if (collapseBtn) collapseBtn.addEventListener("click", function () { setAll(false); });
+
+  function persistOpenState() {
+    state.open = taskBlocks.map(function (d) { return d.open; });
+    saveState(state);
+  }
+  // restore open state
+  if (Array.isArray(state.open)) {
+    taskBlocks.forEach(function (d, i) {
+      if (typeof state.open[i] === "boolean") d.open = state.open[i];
+    });
+  }
+  taskBlocks.forEach(function (d) {
+    d.addEventListener("toggle", persistOpenState);
+  });
+
+  // ---- Multiple choice ----
+  var CORRECT_MC = "B";
+  var MC_RATIONALE = {
+    A: "Incorrect. The data was copied, not deleted or blocked — internal availability is unchanged.",
+    B: "Correct. Exfiltration is unauthorized disclosure of protected data — a confidentiality violation.",
+    C: "Incorrect. Non-repudiation helps attribute the act, but it is not a leg of the CIA triad.",
+    D: "Incorrect. Integrity concerns unauthorized modification; copying does not by itself alter the data."
+  };
+  var checkMc = document.getElementById("checkMc");
+  var mcFeedback = document.getElementById("mcFeedback");
+
+  function renderMc() {
+    var chosen = document.querySelector('input[name="mc"]:checked');
+    if (!chosen) {
+      mcFeedback.className = "rationale show wrong";
+      mcFeedback.innerHTML = '<p class="verdict"><span class="mk" aria-hidden="true">!</span>Select an option first.</p>';
+      return;
+    }
+    var val = chosen.value;
+    var isRight = val === CORRECT_MC;
+    mcFeedback.className = "rationale show " + (isRight ? "correct" : "wrong");
+    var head = isRight
+      ? '<p class="verdict"><span class="mk" aria-hidden="true">[✓]</span>Correct — B, Confidentiality.</p>'
+      : '<p class="verdict"><span class="mk" aria-hidden="true">[✗]</span>Not quite. The best answer is B, Confidentiality.</p>';
+    var body = "<ul style='margin:.4rem 0 0;'>";
+    ["A", "B", "C", "D"].forEach(function (k) {
+      body += "<li><strong>" + k + ".</strong> " + MC_RATIONALE[k] + "</li>";
+    });
+    body += "</ul>";
+    mcFeedback.innerHTML = head + body;
+    state.mc = val;
+    saveState(state);
+  }
+  if (checkMc) checkMc.addEventListener("click", renderMc);
+  // restore mc selection
+  if (state.mc) {
+    var prev = document.getElementById("mc" + state.mc);
+    if (prev) prev.checked = true;
+  }
+
+  // ---- PBQ matching ----
+  var pbqSelects = [1, 2, 3, 4, 5].map(function (n) { return document.getElementById("p" + n); });
+  var CONCEPT_LABEL = {
+    cia: "Confidentiality (CIA triad)",
+    aaa: "Authentication vs. authorization (AAA)",
+    zt: "Zero Trust / policy-driven access",
+    did: "Defense-in-depth / control layering",
+    nr: "Non-repudiation"
+  };
+  var checkPbq = document.getElementById("checkPbq");
+  var pbqScore = document.getElementById("pbqScore");
+
+  function renderPbq() {
+    var correct = 0;
+    var answered = 0;
+    pbqSelects.forEach(function (sel, idx) {
+      if (!sel) return;
+      var fb = document.getElementById("fb" + (idx + 1));
+      var want = sel.getAttribute("data-answer");
+      var got = sel.value;
+      if (got) answered++;
+      if (!got) {
+        fb.textContent = "— not answered";
+        fb.className = "fb no";
+        return;
+      }
+      if (got === want) {
+        correct++;
+        fb.textContent = "[✓] correct";
+        fb.className = "fb ok";
+      } else {
+        fb.textContent = "[✗] try again";
+        fb.className = "fb no";
+      }
+    });
+    pbqScore.textContent = "Score: " + correct + " of 5 correct" +
+      (answered < 5 ? " (" + (5 - answered) + " unanswered)" : "") + ".";
+    state.pbq = pbqSelects.map(function (s) { return s ? s.value : ""; });
+    saveState(state);
+  }
+  if (checkPbq) checkPbq.addEventListener("click", renderPbq);
+  // restore pbq selections
+  if (Array.isArray(state.pbq)) {
+    pbqSelects.forEach(function (s, i) {
+      if (s && typeof state.pbq[i] === "string") s.value = state.pbq[i];
+    });
+  }
+
+  // ---- Reset practice ----
+  var resetBtn = document.getElementById("resetPractice");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", function () {
+      var chosen = document.querySelector('input[name="mc"]:checked');
+      if (chosen) chosen.checked = false;
+      mcFeedback.className = "rationale";
+      mcFeedback.innerHTML = "";
+      pbqSelects.forEach(function (s, i) {
+        if (s) s.value = "";
+        var fb = document.getElementById("fb" + (i + 1));
+        if (fb) { fb.textContent = ""; fb.className = "fb"; }
+      });
+      pbqScore.textContent = "";
+      delete state.mc;
+      delete state.pbq;
+      saveState(state);
+    });
+  }
+})();
+</script>
+</body>
+</html>
